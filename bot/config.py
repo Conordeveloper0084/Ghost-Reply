@@ -5,3 +5,4 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL")

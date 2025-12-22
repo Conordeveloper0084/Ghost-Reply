@@ -231,12 +231,12 @@ async def start_link_account(callback: CallbackQuery):
 
 @router.callback_query(F.data == "confirm_link_account")
 async def confirm_link_account(callback: CallbackQuery):
-    login_url = f"{BACKEND_URL}/web-login/start"
+    login_url = "https://ghost-reply-production.up.railway.app/web-login/start"
 
     text = (
         "🔐 <b>Akkount ulashga tayyormiz</b>\n\n"
         "Quyidagi havola orqali brauzerda Telegram akkauntingizni ulang 👇\n\n"
-        f"🌐 <a href=\"{login_url}\">Ghost Reply akkaunt ulash</a>\n\n"
+        f"🌐 <a href=\"{login_url}\">{login_url}</a>\n\n"
         "Ulash tugagach, pastdagi tugma orqali holatni tekshiring."
     )
 
@@ -244,10 +244,8 @@ async def confirm_link_account(callback: CallbackQuery):
         text,
         parse_mode="HTML",
         disable_web_page_preview=True,
-        reply_markup=check_account_kb,
     )
     await callback.answer()
-
 
 @router.callback_query(F.data == "cancel_link_account")
 async def cancel_link_account(callback: CallbackQuery):

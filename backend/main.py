@@ -4,21 +4,14 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.api import users, triggers, payment, admin, analytics
 from Frontend.web_login import router as web_login_router
-from backend.core import cron
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Application lifespan handler.
-    Starts background cron/heartbeat watcher exactly once when API boots.
-    IMPORTANT:
-    - Keep this function LIGHT.
-    - Do NOT run DB migrations or heavy queries here.
+    Railway-safe lifespan.
+    Do NOT start cron or background jobs here.
     """
-    starter = getattr(cron, "start", None) or getattr(cron, "start_cron", None)
-    if starter:
-        starter()
     yield
 
 
