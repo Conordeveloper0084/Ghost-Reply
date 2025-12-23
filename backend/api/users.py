@@ -52,35 +52,41 @@ def claim_users(
     db: Session = Depends(get_db),
 ):
     try:
+        # 1️⃣ Avval ID’larni olamiz
+        ids = db.execute(
+            text("""
+                SELECT id
+                FROM users
+                WHERE worker_id IS NULL
+                ORDER BY last_seen_at DESC NULLS LAST
+                LIMIT :limit
+                FOR UPDATE SKIP LOCKED
+            """),
+            {"limit": limit},
+        ).scalars().all()
+
+        if not ids:
+            db.rollback()
+            return []
+
+        # 2️⃣ Keyin UPDATE qilamiz
         result = db.execute(
             text("""
                 UPDATE users
                 SET worker_id = :worker_id,
                     worker_active = true
-                WHERE id IN (
-                    SELECT id FROM users
-                    WHERE worker_id IS NULL
-                    ORDER BY last_seen_at DESC NULLS LAST
-                    LIMIT :limit
-                    FOR UPDATE SKIP LOCKED
-                )
-                RETURNING telegram_id, session_string;
+                WHERE id = ANY(:ids)
+                RETURNING telegram_id, session_string
             """),
             {
                 "worker_id": worker_id,
-                "limit": limit,
-            }
+                "ids": ids,
+            },
         )
 
         rows = result.fetchall()
+        db.commit()
 
-        # 🔐 Faqat update bo‘lsa commit
-        if rows:
-            db.commit()
-        else:
-            db.rollback()
-
-        # ✅ EMPTY-SAFE: hech kim yo‘q → []
         return [
             {
                 "telegram_id": r.telegram_id,
@@ -91,8 +97,9 @@ def claim_users(
 
     except Exception as e:
         db.rollback()
-        # ❌ 500 yo‘q — worker tinch uxlaydi
-        return []
+        # 🔥 MUHIM: backend log’da ko‘rish uchun
+        print("CLAIM_USERS_ERROR:", e)
+        raise HTTPException(status_code=500, detail="claim_users failed")
 
 @router.post("/register", response_model=UserRead)
 def register_user(payload: UserCreate, db: Session = Depends(get_db)):
