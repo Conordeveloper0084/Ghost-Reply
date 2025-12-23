@@ -9,9 +9,6 @@ from backend.models.user import User, PlanEnum
 from backend.schemas.user import (
     UserCreate,
     UserRead,
-    UserUpdatePlan,
-    UserSummary,
-    UserUpgradeRequest,
     UserUpdatePhone,
 )
 
@@ -21,9 +18,10 @@ from backend.models.user import User
 from backend.models.telegram_session import TelegramSession
 
 
-def get_worker_id(x_worker_id: str = Header(None)):
-    if x_worker_id is None:
-        raise HTTPException(status_code=400, detail="X-Worker-ID header missing")
+# Worker authentication via header
+def get_worker_id(
+    x_worker_id: str = Header(..., alias="X-Worker-ID")
+):
     return x_worker_id
 
 
