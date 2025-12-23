@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
-from sqlalchemy import bindparam
-from sqlalchemy import select, update
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
@@ -15,24 +13,26 @@ from backend.schemas.user import (
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-from backend.models.user import User
-from backend.models.telegram_session import TelegramSession
 
-
-# Worker authentication via header
+# =========================
+# Worker authentication
+# =========================
 def get_worker_id(
     x_worker_id: str = Header(..., alias="X-Worker-ID")
 ):
     return x_worker_id
 
 
+# =========================
+# Queries
+# =========================
 @router.get("/with-sessions")
 def get_users_with_sessions(db: Session = Depends(get_db)):
     users = (
         db.query(User)
         .filter(
-            User.worker_active == True,
-            User.session_string.isnot(None)
+            User.worker_active.is_(True),
+            User.session_string.isnot(None),
         )
         .all()
     )
@@ -46,6 +46,9 @@ def get_users_with_sessions(db: Session = Depends(get_db)):
     ]
 
 
+# =========================
+# Worker → claim users
+# =========================
 @router.post("/claim")
 def claim_users(
     limit: int = 50,
@@ -84,6 +87,10 @@ def claim_users(
         print("CLAIM_USERS_FATAL:", repr(e))
         raise HTTPException(status_code=500, detail="claim_users failed")
 
+
+# =========================
+# User registration
+# =========================
 @router.post("/register", response_model=UserRead)
 def register_user(payload: UserCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.telegram_id == payload.telegram_id).first()
@@ -103,20 +110,16 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-PLAN_LIMITS = {
-    PlanEnum.free: 3,
-    PlanEnum.pro: 10,
-    PlanEnum.premium: 20,
-}
-
-
+# =========================
+# Active users
+# =========================
 @router.get("/active")
 def get_active_users(db: Session = Depends(get_db)):
-    users = db.query(User).filter(User.worker_active == True).all()
+    users = db.query(User).filter(User.worker_active.is_(True)).all()
     return [
         {
             "telegram_id": u.telegram_id,
-            "session_string": u.session_string
+            "session_string": u.session_string,
         }
         for u in users
     ]
@@ -130,6 +133,9 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
     return user
 
 
+# =========================
+# Complete registration
+# =========================
 class CompleteRegistrationRequest(BaseModel):
     telegram_id: int
     phone: str
@@ -138,7 +144,10 @@ class CompleteRegistrationRequest(BaseModel):
 
 
 @router.post("/complete-registration")
-def complete_registration(data: CompleteRegistrationRequest, db: Session = Depends(get_db)):
+def complete_registration(
+    data: CompleteRegistrationRequest,
+    db: Session = Depends(get_db),
+):
     user = db.query(User).filter(User.telegram_id == data.telegram_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -155,6 +164,9 @@ def complete_registration(data: CompleteRegistrationRequest, db: Session = Depen
     return {"status": "ok"}
 
 
+# =========================
+# Heartbeat
+# =========================
 @router.post("/heartbeat/{telegram_id}")
 def heartbeat(telegram_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.telegram_id == telegram_id).first()
@@ -168,16 +180,16 @@ def heartbeat(telegram_id: int, db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-
-
+# =========================
+# Update phone
+# =========================
 @router.post("/update_phone", response_model=UserRead)
 def update_phone(
     data: UserUpdatePhone,
     telegram_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.telegram_id == telegram_id).first()
-
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -187,9 +199,12 @@ def update_phone(
 
     db.commit()
     db.refresh(user)
-
     return user
 
+
+# =========================
+# Worker disconnected
+# =========================
 @router.post("/worker-disconnected/{telegram_id}")
 def worker_disconnected(telegram_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.telegram_id == telegram_id).first()

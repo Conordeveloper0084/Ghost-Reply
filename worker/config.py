@@ -1,8 +1,5 @@
 import os
-from dotenv import load_dotenv
 import uuid
-
-load_dotenv()
 
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
@@ -18,5 +15,3 @@ TRIGGER_CACHE_TTL = int(os.getenv("TRIGGER_CACHE_TTL", 10))
 
 WORKER_ID = os.getenv("WORKER_ID", str(uuid.uuid4()))
 MAX_CLIENTS = int(os.getenv("MAX_CLIENTS", 50))
-
-MAX_ACTIVE_TASKS = 20
