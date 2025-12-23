@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import datetime
+from sqlalchemy import bindparam
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
@@ -52,7 +53,6 @@ def claim_users(
     db: Session = Depends(get_db),
 ):
     try:
-        # 1️⃣ Avval ID’larni olamiz
         ids = db.execute(
             text("""
                 SELECT id
@@ -69,15 +69,19 @@ def claim_users(
             db.rollback()
             return []
 
-        # 2️⃣ Keyin UPDATE qilamiz
-        result = db.execute(
+        stmt = (
             text("""
                 UPDATE users
                 SET worker_id = :worker_id,
                     worker_active = true
-                WHERE id = ANY(:ids)
+                WHERE id IN :ids
                 RETURNING telegram_id, session_string
-            """),
+            """)
+            .bindparams(bindparam("ids", expanding=True))
+        )
+
+        result = db.execute(
+            stmt,
             {
                 "worker_id": worker_id,
                 "ids": ids,
@@ -97,8 +101,7 @@ def claim_users(
 
     except Exception as e:
         db.rollback()
-        # 🔥 MUHIM: backend log’da ko‘rish uchun
-        print("CLAIM_USERS_ERROR:", e)
+        print("CLAIM_USERS_FATAL:", repr(e))
         raise HTTPException(status_code=500, detail="claim_users failed")
 
 @router.post("/register", response_model=UserRead)
