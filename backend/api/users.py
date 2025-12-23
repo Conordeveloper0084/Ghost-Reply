@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import datetime
 from sqlalchemy import bindparam
+from sqlalchemy import select, update
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
@@ -53,50 +53,30 @@ def claim_users(
     db: Session = Depends(get_db),
 ):
     try:
-        ids = db.execute(
-            text("""
-                SELECT id
-                FROM users
-                WHERE worker_id IS NULL
-                ORDER BY last_seen_at DESC NULLS LAST
-                LIMIT :limit
-                FOR UPDATE SKIP LOCKED
-            """),
-            {"limit": limit},
-        ).scalars().all()
+        users = (
+            db.query(User)
+            .filter(User.worker_id.is_(None))
+            .order_by(User.last_seen_at.desc().nullslast())
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+            .all()
+        )
 
-        if not ids:
-            db.rollback()
+        if not users:
             return []
 
-        stmt = (
-            text("""
-                UPDATE users
-                SET worker_id = :worker_id,
-                    worker_active = true
-                WHERE id IN :ids
-                RETURNING telegram_id, session_string
-            """)
-            .bindparams(bindparam("ids", expanding=True))
-        )
+        for u in users:
+            u.worker_id = worker_id
+            u.worker_active = True
 
-        result = db.execute(
-            stmt,
-            {
-                "worker_id": worker_id,
-                "ids": ids,
-            },
-        )
-
-        rows = result.fetchall()
         db.commit()
 
         return [
             {
-                "telegram_id": r.telegram_id,
-                "session_string": r.session_string,
+                "telegram_id": u.telegram_id,
+                "session_string": u.session_string,
             }
-            for r in rows
+            for u in users
         ]
 
     except Exception as e:
