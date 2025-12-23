@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from datetime import datetime
-from backend.core.deps import get_worker_id
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum

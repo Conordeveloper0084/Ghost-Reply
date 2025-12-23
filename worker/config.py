@@ -7,8 +7,10 @@ load_dotenv()
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 
-# ✅ MUHIM: Docker service name bilan
-BACKEND_URL = "http://backend:8000"
+BACKEND_URL = os.getenv(
+    "BACKEND_URL",
+    "https://ghost-reply-production.up.railway.app"
+)
 
 WORKER_POLL_INTERVAL = int(os.getenv("WORKER_POLL_INTERVAL", 5))
 WORKER_LOG_LEVEL = os.getenv("WORKER_LOG_LEVEL", "INFO")
