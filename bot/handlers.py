@@ -295,20 +295,7 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
     worker_active = user.get("worker_active") is True
     session_string = user.get("session_string")
 
-    # ✅ Account is considered linked ONLY if ALL conditions are met
-    if is_registered and worker_active and session_string:
-        await state.clear()
-        await callback.message.answer(
-            "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
-            "Endi triggerlarni yaratishingiz va boshqarishingiz mumkin 👇",
-            parse_mode="HTML",
-            reply_markup=main_menu,
-        )
-        await callback.answer()
-        return
-
-    # 🔌 Session missing or revoked
-    if not session_string:
+    if session_string is None:
         await callback.message.answer(
             "🔌 <b>Akkountingiz uzilgan</b>\n\n"
             "Telegram qurilmalar bo‘limidan Ghost Reply sessiyasi o‘chirilgan.\n"
@@ -319,16 +306,30 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # ⏳ Registration not finished
-    await callback.message.answer(
-        "⏳ Akkount hali to‘liq ulanmagan.\n\n"
-        "Agar hozirgina brauzer orqali Telegram login qilgan bo‘lsangiz, "
-        "bir necha soniyadan keyin yana tekshirib ko‘ring.",
-        reply_markup=check_account_kb,
-    )
-    await callback.answer()
+    # ✅ Account is considered linked ONLY if ALL conditions are met
+    if is_registered and not worker_active:
+        await callback.message.answer(
+            "⏳ <b>Akkount ulanmoqda...</b>\n\n"
+            "Sessiya saqlandi, worker ulanmoqda.\n"
+            "Iltimos, 5–10 soniyadan keyin yana tekshirib ko‘ring.",
+            parse_mode="HTML",
+            reply_markup=check_account_kb,
+        )
+        await callback.answer()
+        return
 
 
+#     3️⃣ Hammasi joyida
+    if is_registered and worker_active:
+        await state.clear()
+        await callback.message.answer(
+            "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
+            "Endi triggerlarni yaratishingiz va boshqarishingiz mumkin 👇",
+            parse_mode="HTML",
+            reply_markup=main_menu,
+        )
+        await callback.answer()
+        return
 
 # ============================
 #        YO'RIQNOMA
