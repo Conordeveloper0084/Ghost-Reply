@@ -7,7 +7,7 @@ API_HASH = os.getenv("TELEGRAM_API_HASH")
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
     "http://backend:8080"
-)git 
+)
 
 WORKER_POLL_INTERVAL = int(os.getenv("WORKER_POLL_INTERVAL", 5))
 WORKER_LOG_LEVEL = os.getenv("WORKER_LOG_LEVEL", "INFO")
