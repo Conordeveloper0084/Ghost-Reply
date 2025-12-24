@@ -85,7 +85,7 @@ def claim_users(
     except Exception as e:
         db.rollback()
         print("CLAIM_USERS_FATAL:", repr(e))
-        raise HTTPException(status_code=500, detail="claim_users failed")
+        return []
 
 
 # =========================

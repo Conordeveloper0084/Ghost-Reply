@@ -1,12 +1,11 @@
 # worker/main.py
 import asyncio
 import logging
-
 import signal
-import sys
 
 import httpx
 
+from worker.config import BACKEND_URL
 from worker.session_loader import claim_users_for_worker
 from worker.client_manager import get_or_create_client
 from worker.utils import setup_shutdown_hooks
@@ -29,17 +28,17 @@ SHUTDOWN_EVENT = asyncio.Event()
 
 HEARTBEAT_INTERVAL = 15  # seconds
 
+
 async def heartbeat_loop(telegram_id: int):
     async with httpx.AsyncClient(timeout=5) as client:
         while not SHUTDOWN_EVENT.is_set():
             try:
                 await client.post(
-                    f"http://backend:8000/api/users/heartbeat/{telegram_id}"
+                    f"{BACKEND_URL}/api/users/heartbeat/{telegram_id}"
                 )
             except Exception as e:
-                logger.warning(
-                    f"💔 Heartbeat failed for {telegram_id}: {e}"
-                )
+                logger.warning(f"💔 Heartbeat failed for {telegram_id}: {e}")
+
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
 
@@ -63,7 +62,10 @@ async def start_client(user: dict):
 
 
 async def graceful_shutdown():
-    logger.warning("🛑 SIGTERM received — shutting down worker gracefully")
+    if SHUTDOWN_EVENT.is_set():
+        return
+
+    logger.warning("🛑 Shutdown signal received — stopping worker")
 
     SHUTDOWN_EVENT.set()
 
@@ -80,7 +82,7 @@ async def graceful_shutdown():
     await asyncio.gather(*tasks, return_exceptions=True)
     ACTIVE_TASKS.clear()
 
-    logger.info("✅ All clients stopped, worker exiting")
+    logger.info("✅ All clients stopped, worker exited cleanly")
 
 
 async def worker_loop():
@@ -88,11 +90,9 @@ async def worker_loop():
 
     while not SHUTDOWN_EVENT.is_set():
         try:
-            active_count = len(ACTIVE_TASKS)
-
-            if active_count >= MAX_ACTIVE_TASKS:
+            if len(ACTIVE_TASKS) >= MAX_ACTIVE_TASKS:
                 logger.info(
-                    f"⏸ Worker at capacity ({active_count}/{MAX_ACTIVE_TASKS}), sleeping"
+                    f"⏸ Worker at capacity ({len(ACTIVE_TASKS)}/{MAX_ACTIVE_TASKS}), sleeping"
                 )
                 await asyncio.sleep(IDLE_SLEEP)
                 continue
@@ -100,13 +100,11 @@ async def worker_loop():
             users = await claim_users_for_worker()
 
             if not users:
-                logger.debug("😴 No users available, idling...")
                 await asyncio.sleep(IDLE_SLEEP)
                 continue
 
             for user in users:
                 if len(ACTIVE_TASKS) >= MAX_ACTIVE_TASKS:
-                    logger.info("🚫 Reached MAX_ACTIVE_TASKS, stop claiming")
                     break
 
                 telegram_id = user["telegram_id"]
@@ -125,15 +123,24 @@ async def worker_loop():
             logger.error(f"❌ Worker loop error: {e}")
             await asyncio.sleep(ERROR_SLEEP)
 
-def _handle_signal():
-    asyncio.create_task(graceful_shutdown())
 
-loop = asyncio.get_event_loop()
-loop.add_signal_handler(signal.SIGTERM, _handle_signal)
-loop.add_signal_handler(signal.SIGINT, _handle_signal)
+async def main():
+    loop = asyncio.get_running_loop()
+
+    loop.add_signal_handler(
+        signal.SIGTERM,
+        lambda: asyncio.create_task(graceful_shutdown())
+    )
+    loop.add_signal_handler(
+        signal.SIGINT,
+        lambda: asyncio.create_task(graceful_shutdown())
+    )
+
+    await worker_loop()
+
 
 if __name__ == "__main__":
     try:
-        asyncio.run(worker_loop())
+        asyncio.run(main())
     except KeyboardInterrupt:
         pass
