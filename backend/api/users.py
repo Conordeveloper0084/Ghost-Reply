@@ -61,10 +61,24 @@ def claim_users(
     db: Session = Depends(get_db),
 ):
     try:
+        from datetime import datetime, timedelta
+        from sqlalchemy import or_, and_
+
+        STALE_AFTER = timedelta(seconds=45)
+        now = datetime.utcnow()
+
         users = (
             db.query(User)
-            .filter(User.worker_id.is_(None))
-            .order_by(User.last_seen_at.desc().nullslast())
+            .filter(
+                or_(
+                    User.worker_id.is_(None),
+                    and_(
+                        User.last_seen_at.isnot(None),
+                        User.last_seen_at < now - STALE_AFTER,
+                    )
+                )
+            )
+            .order_by(User.last_seen_at.asc().nullslast())
             .limit(limit)
             .with_for_update(skip_locked=True)
             .all()
