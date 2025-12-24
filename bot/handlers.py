@@ -231,7 +231,7 @@ async def start_link_account(callback: CallbackQuery):
 
 @router.callback_query(F.data == "confirm_link_account")
 async def confirm_link_account(callback: CallbackQuery):
-    login_url = "https://ghost-reply-production.up.railway.app/web-login/start"
+    login_url = "https://backend-production-2620.up.railway.app/web-login/start"
 
     text = (
         "🔐 <b>Akkount ulashga tayyormiz</b>\n\n"
@@ -242,6 +242,7 @@ async def confirm_link_account(callback: CallbackQuery):
 
     await callback.message.answer(
         text,
+
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
