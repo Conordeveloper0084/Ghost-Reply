@@ -54,7 +54,11 @@ async def start_client(user: dict):
     try:
         client = await get_or_create_client(telegram_id, session_string)
         logger.info(f"🟢 Telegram client connected for {telegram_id}")
-        await asyncio.shield(client.run_until_disconnected())
+
+        # Keep client alive without blocking the worker loop
+        while not SHUTDOWN_EVENT.is_set():
+            await asyncio.sleep(60)
+
     finally:
         heartbeat_task.cancel()
         await asyncio.gather(heartbeat_task, return_exceptions=True)

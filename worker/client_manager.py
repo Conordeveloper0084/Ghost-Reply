@@ -20,13 +20,12 @@ async def get_or_create_client(telegram_id: int, session_string: str) -> Telegra
         API_HASH,
     )
 
-    await client.start()
+    await client.connect()
 
-    # 🔥 MUHIM JOY — TRIGGER ENGINE ULANADI
-    client.add_event_handler(
-        lambda e: handle_incoming_message(client, e, telegram_id),
-        events.NewMessage(incoming=True),
-    )
+    # 🔥 TO‘G‘RI EVENT HANDLER
+    @client.on(events.NewMessage())
+    async def _(event):
+        await handle_incoming_message(client, event, telegram_id)
 
     _clients[telegram_id] = client
     return client
