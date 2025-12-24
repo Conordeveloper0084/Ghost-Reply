@@ -55,9 +55,11 @@ async def start_client(user: dict):
         client = await get_or_create_client(telegram_id, session_string)
         logger.info(f"🟢 Telegram client connected for {telegram_id}")
 
-        # Keep client alive without blocking the worker loop
-        while not SHUTDOWN_EVENT.is_set():
-            await asyncio.sleep(60)
+        # 🔥 MUHIM: Telethon update loop shu yerda ishga tushadi
+        await client.run_until_disconnected()
+
+    except Exception as e:
+        logger.exception(f"❌ Telegram client crashed for {telegram_id}: {e}")
 
     finally:
         heartbeat_task.cancel()
