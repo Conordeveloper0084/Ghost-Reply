@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
+import logging
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
@@ -12,14 +13,17 @@ from backend.schemas.user import (
 )
 
 router = APIRouter(prefix="/users", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 # =========================
 # Worker authentication
 # =========================
 def get_worker_id(
-    x_worker_id: str = Header(..., alias="X-Worker-ID")
+    x_worker_id: str = Header(..., alias="X-Worker-ID"),
 ):
+    if not x_worker_id:
+        raise HTTPException(status_code=400, detail="X-Worker-ID header missing")
     return x_worker_id
 
 
@@ -84,7 +88,8 @@ def claim_users(
 
     except Exception as e:
         db.rollback()
-        print("CLAIM_USERS_FATAL:", repr(e))
+        logger.exception("CLAIM_USERS_FATAL")
+        # IMPORTANT: never crash the API for worker polling
         return []
 
 
