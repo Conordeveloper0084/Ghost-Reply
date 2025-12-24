@@ -12,4 +12,7 @@ WORKER_ID = os.getenv("WORKER_ID", str(uuid.uuid4()))
 MAX_CLIENTS = int(os.getenv("MAX_CLIENTS", 50))
 MAX_ACTIVE_TASKS = int(os.getenv("MAX_ACTIVE_TASKS", 20))
 
-BACKEND_URL = os.getenv("BACKEND_URL")
+BACKEND_URL = os.getenv(
+    "BACKEND_URL",
+    "https://backend-production-2620.up.railway.app"
+)
