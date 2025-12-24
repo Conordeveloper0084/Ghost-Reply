@@ -44,6 +44,7 @@ class User(Base):
 
     registered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    worker_id = Column(String, nullable=True, index=True)
 
     worker_active = Column(Boolean, default=False)
     last_seen_at = Column(DateTime, nullable=True)
