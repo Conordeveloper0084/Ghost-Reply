@@ -16,5 +16,5 @@ MAX_ACTIVE_TASKS = int(os.getenv("MAX_ACTIVE_TASKS", 20))
 
 BACKEND_URL = os.getenv(
     "BACKEND_URL",
-    "http://ghost-reply-production.railway.internal:8000"
+    "https://ghost-reply-production.up.railway.app"
 )
