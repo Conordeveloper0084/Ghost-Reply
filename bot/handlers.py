@@ -262,7 +262,7 @@ async def cancel_link_account(callback: CallbackQuery):
 async def check_account(callback: CallbackQuery, state: FSMContext):
     telegram_id = callback.from_user.id
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=5) as client:
         res = await client.get(f"{BACKEND_URL}/api/users/{telegram_id}")
 
     if res.status_code != 200:
@@ -274,24 +274,28 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
 
     user = res.json()
 
-    if user.get("worker_active"):
+    # ✅ Account is considered fully linked ONLY if BOTH conditions are true
+    # 1. worker_active == True
+    # 2. is_registered == True
+    if user.get("worker_active") and user.get("is_registered"):
         await state.clear()
         await callback.message.answer(
-            "🎉 <b>Akkountingiz muvaffaqiyatli ro'yxatdan o'tdi!</b>\n\n"
+            "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
             "Endi triggerlarni yaratishingiz va boshqarishingiz mumkin 👇",
             parse_mode="HTML",
             reply_markup=main_menu,
         )
         await callback.answer()
         return
-    else:
-        await callback.message.answer(
-            "⏳ Akkount hali ro'yxatdan o'tmagan.\n\n"
-            "Agar hozirgina brauzer orqali login qilgan bo‘lsangiz, "
-            "bir necha soniyadan keyin yana tekshirib ko‘ring.",
-            reply_markup=check_account_kb,
-        )
 
+    # ⏳ Partial or not completed registration
+    await callback.message.answer(
+        "⏳ Akkount hali to‘liq ulanmagan.\n\n"
+        "Agar hozirgina brauzer orqali Telegram login qilgan bo‘lsangiz, "
+        "bir necha soniyadan keyin yana tekshirib ko‘ring.\n\n"
+        "Agar hali login qilmagan bo‘lsangiz — avval brauzer orqali akkountni ulang.",
+        reply_markup=check_account_kb,
+    )
     await callback.answer()
 
 

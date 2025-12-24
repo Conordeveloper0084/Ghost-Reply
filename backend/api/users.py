@@ -160,6 +160,7 @@ def complete_registration(
     user.phone = data.phone
     user.session_string = data.session_string
     user.username = data.username
+    # This is the ONLY place where registration is completed
     user.is_registered = True
     user.worker_active = True
     user.registered_at = datetime.utcnow()
@@ -199,8 +200,8 @@ def update_phone(
         raise HTTPException(status_code=404, detail="User not found")
 
     user.phone = data.phone
-    user.is_registered = True
-    user.registered_at = datetime.utcnow()
+    # Phone update does NOT mean full registration
+    # user.is_registered and user.registered_at are NOT set here
 
     db.commit()
     db.refresh(user)
