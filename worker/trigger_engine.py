@@ -44,6 +44,12 @@ async def handle_incoming_message(
     event: events.NewMessage.Event,
     telegram_id: int,
 ):
+    # 🔎 DEBUG: event umuman kelayaptimi?
+    try:
+        print("📩 EVENT KELDI:", event.message.text if event.message else None)
+    except Exception as e:
+        print("❌ EVENT PRINT ERROR:", e)
+
     # Ignore outgoing messages (prevent self-reply loops)
     if event.out:
         return
