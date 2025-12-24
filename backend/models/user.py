@@ -32,6 +32,8 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
+    telegram_session = relationship("TelegramSession", back_populates="user", uselist=False)
+
 
     telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
 

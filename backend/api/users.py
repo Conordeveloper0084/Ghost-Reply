@@ -5,7 +5,9 @@ from datetime import datetime
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy import or_, and_
-
+from datetime import datetime, timedelta
+from sqlalchemy import or_, and_
+from backend.models.telegram_session import TelegramSession
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
 from backend.schemas.user import (
@@ -62,20 +64,24 @@ def claim_users(
     worker_id: str = Depends(get_worker_id),
     db: Session = Depends(get_db),
 ):
-    STALE_AFTER = timedelta(seconds=45)
-    now = datetime.utcnow()
-
     try:
+        STALE_AFTER = timedelta(seconds=45)
+        now = datetime.utcnow()
+
         users = (
             db.query(User)
+            .join(TelegramSession, TelegramSession.user_id == User.id)
             .filter(
+                User.is_registered.is_(True),
+                TelegramSession.session_string.isnot(None),
                 or_(
                     User.worker_id.is_(None),
+                    User.worker_active.is_(False),
                     and_(
                         User.last_seen_at.isnot(None),
                         User.last_seen_at < now - STALE_AFTER,
-                    )
-                )
+                    ),
+                ),
             )
             .order_by(User.last_seen_at.asc().nullslast())
             .limit(limit)
@@ -89,12 +95,15 @@ def claim_users(
         for u in users:
             u.worker_id = worker_id
             u.worker_active = True
+            # claim paytida ham update qilamiz — boshqa worker “stale” deb tortib ketmasin
+            u.last_seen_at = now
 
         db.commit()
 
         return [
             {
                 "telegram_id": u.telegram_id,
+                # ✅ session_string endi property orqali TelegramSession’dan keladi
                 "session_string": u.session_string,
             }
             for u in users

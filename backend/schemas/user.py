@@ -29,6 +29,7 @@ class UserRead(BaseModel):
     worker_id: Optional[str] = None 
     registered_at: Optional[datetime] = None
     created_at: datetime
+    session_string: str | None = None
 
     class Config:
         from_attributes = True

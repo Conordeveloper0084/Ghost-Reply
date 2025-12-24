@@ -1207,6 +1207,8 @@ async def _finish_login(login_id: str, db: Session) -> HTMLResponse:
     finally:
         await client.disconnect()
 
+    now = datetime.utcnow()
+
     # 1️⃣ USER UPSERT
     user = db.query(User).filter(User.telegram_id == me.id).first()
 
@@ -1218,8 +1220,9 @@ async def _finish_login(login_id: str, db: Session) -> HTMLResponse:
             phone=me.phone,
             plan=PlanEnum.free,
             is_registered=True,
-            worker_active=True,
-            registered_at=datetime.utcnow(),
+            worker_active=False,     # ✅ worker heartbeat bilan True bo‘ladi
+            worker_id=None,          # ✅ qayta claim bo‘lishi uchun
+            registered_at=now,
         )
         db.add(user)
         db.flush()  # 🔥 user.id ni olish uchun
@@ -1227,9 +1230,13 @@ async def _finish_login(login_id: str, db: Session) -> HTMLResponse:
         user.username = me.username
         user.phone = me.phone
         user.is_registered = True
-        user.worker_active = True
+
+        # ✅ LOGIN tugagach worker’ga qayta claim bo‘lishi uchun reset
+        user.worker_id = None
+        user.worker_active = False
+
         if not user.registered_at:
-            user.registered_at = datetime.utcnow()
+            user.registered_at = now
 
     # 2️⃣ TELEGRAM SESSION UPSERT (USER_ID ORQALI)
     tg_session = (
@@ -1249,7 +1256,7 @@ async def _finish_login(login_id: str, db: Session) -> HTMLResponse:
         tg_session.session_string = session_string
 
     # 3️⃣ META
-    user.last_seen_at = datetime.utcnow()
+    user.last_seen_at = now  # ✅ claim/stale logika uchun foydali
 
     db.commit()
 
