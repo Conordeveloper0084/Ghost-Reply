@@ -35,8 +35,9 @@ def get_users_with_sessions(db: Session = Depends(get_db)):
     users = (
         db.query(User)
         .filter(
-            User.worker_active.is_(True),
+            User.worker_id.is_(None),
             User.session_string.isnot(None),
+            User.is_registered.is_(True),
         )
         .all()
     )
@@ -222,3 +223,18 @@ def worker_disconnected(telegram_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "disconnected"}
+
+@router.post("/session-revoked/{telegram_id}")
+def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    if not user:
+        return {"status": "ignored"}
+
+    user.session_string = None
+    user.is_registered = False
+    user.worker_active = False
+    user.worker_id = None
+    user.last_seen_at = None
+
+    db.commit()
+    return {"status": "revoked"}

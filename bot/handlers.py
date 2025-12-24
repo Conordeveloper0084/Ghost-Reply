@@ -291,10 +291,12 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
 
     user = res.json()
 
-    # ✅ Account is considered fully linked ONLY if BOTH conditions are true
-    # 1. worker_active == True
-    # 2. is_registered == True
-    if user.get("worker_active") and user.get("is_registered"):
+    is_registered = user.get("is_registered") is True
+    worker_active = user.get("worker_active") is True
+    session_string = user.get("session_string")
+
+    # ✅ Account is considered linked ONLY if ALL conditions are met
+    if is_registered and worker_active and session_string:
         await state.clear()
         await callback.message.answer(
             "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
@@ -305,12 +307,23 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # ⏳ Partial or not completed registration
+    # 🔌 Session missing or revoked
+    if not session_string:
+        await callback.message.answer(
+            "🔌 <b>Akkountingiz uzilgan</b>\n\n"
+            "Telegram qurilmalar bo‘limidan Ghost Reply sessiyasi o‘chirilgan.\n"
+            "Iltimos, akkountingizni qayta ulang.",
+            parse_mode="HTML",
+            reply_markup=start_menu_kb,
+        )
+        await callback.answer()
+        return
+
+    # ⏳ Registration not finished
     await callback.message.answer(
         "⏳ Akkount hali to‘liq ulanmagan.\n\n"
         "Agar hozirgina brauzer orqali Telegram login qilgan bo‘lsangiz, "
-        "bir necha soniyadan keyin yana tekshirib ko‘ring.\n\n"
-        "Agar hali login qilmagan bo‘lsangiz — avval brauzer orqali akkountni ulang.",
+        "bir necha soniyadan keyin yana tekshirib ko‘ring.",
         reply_markup=check_account_kb,
     )
     await callback.answer()
