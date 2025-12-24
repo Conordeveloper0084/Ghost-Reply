@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+from datetime import datetime, timedelta
+from sqlalchemy import or_, and_
 
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
@@ -60,13 +62,10 @@ def claim_users(
     worker_id: str = Depends(get_worker_id),
     db: Session = Depends(get_db),
 ):
+    STALE_AFTER = timedelta(seconds=45)
+    now = datetime.utcnow()
+
     try:
-        from datetime import datetime, timedelta
-        from sqlalchemy import or_, and_
-
-        STALE_AFTER = timedelta(seconds=45)
-        now = datetime.utcnow()
-
         users = (
             db.query(User)
             .filter(
@@ -101,12 +100,10 @@ def claim_users(
             for u in users
         ]
 
-    except Exception as e:
+    except Exception:
         db.rollback()
         logger.exception("CLAIM_USERS_FATAL")
-        # IMPORTANT: never crash the API for worker polling
         return []
-
 
 # =========================
 # User registration

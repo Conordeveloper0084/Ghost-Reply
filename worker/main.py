@@ -5,7 +5,6 @@ import signal
 
 import httpx
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
-
 from worker.session_loader import claim_users_for_worker
 from worker.client_manager import get_or_create_client
 from worker.utils import setup_shutdown_hooks
