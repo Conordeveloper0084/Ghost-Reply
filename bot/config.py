@@ -4,5 +4,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
+BACKEND_URL = os.getenv("BACKEND_URL")
 PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL")
