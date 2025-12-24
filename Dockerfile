@@ -23,4 +23,4 @@ COPY alembic.ini /app/alembic.ini
 ENV PYTHONPATH=/app
 
 # Default command (overridden by docker-compose for backend)
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"]
