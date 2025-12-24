@@ -53,7 +53,8 @@ async def start_client(user: dict):
 
     try:
         client = await get_or_create_client(telegram_id, session_string)
-        await client.run_until_disconnected()
+        logger.info(f"🟢 Telegram client connected for {telegram_id}")
+        await asyncio.shield(client.run_until_disconnected())
     finally:
         heartbeat_task.cancel()
         await asyncio.gather(heartbeat_task, return_exceptions=True)
@@ -86,6 +87,7 @@ async def worker_loop():
             users = await claim_users_for_worker()
 
             if not users:
+                logger.debug("😴 No users available to claim, worker idling")
                 await asyncio.sleep(IDLE_SLEEP)
                 continue
 
