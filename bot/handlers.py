@@ -240,10 +240,27 @@ async def confirm_link_account(callback: CallbackQuery):
         "Ulash tugagach, pastdagi tugma orqali holatni tekshiring."
     )
 
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🔄 Akkount holatini tekshirish",
+                    callback_data="check_account"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Bekor qilish",
+                    callback_data="cancel_link_account"
+                )
+            ]
+        ]
+    )
+
     await callback.message.answer(
         text,
-
         parse_mode="HTML",
+        reply_markup=keyboard,
         disable_web_page_preview=True,
     )
     await callback.answer()
