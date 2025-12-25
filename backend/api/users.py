@@ -35,6 +35,7 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
         "telegram_id": user.telegram_id,
         "name": user.name,
         "username": user.username,
+        "is_admin": user.is_admin,  
         "phone": user.phone,
         "plan": user.plan,
         "is_registered": user.is_registered,
