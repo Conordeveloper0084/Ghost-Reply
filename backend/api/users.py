@@ -8,6 +8,10 @@ from sqlalchemy import or_, and_
 from datetime import datetime, timedelta
 from sqlalchemy import or_, and_
 from backend.models.telegram_session import TelegramSession
+
+from sqlalchemy.orm import joinedload
+
+from backend.models.telegram_session import TelegramSession
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
 from backend.schemas.user import (
@@ -19,6 +23,35 @@ from backend.schemas.user import (
 router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
 
+
+@router.get("/{telegram_id}")
+def get_user(telegram_id: int, db: Session = Depends(get_db)):
+    user = (
+        db.query(User)
+        .options(joinedload(User.telegram_session))
+        .filter(User.telegram_id == telegram_id)
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    session_string = None
+    if user.telegram_session and user.telegram_session.session_string:
+        session_string = user.telegram_session.session_string
+
+    # JSON qilib qaytaramiz (bot shu JSON’ni ishlatadi)
+    return {
+        "telegram_id": user.telegram_id,
+        "name": user.name,
+        "username": user.username,
+        "phone": user.phone,
+        "plan": user.plan,
+        "is_registered": user.is_registered,
+        "worker_active": user.worker_active,
+        "worker_id": user.worker_id,
+        "last_seen_at": user.last_seen_at.isoformat() if user.last_seen_at else None,
+        "session_string": session_string,
+    }
 
 # =========================
 # Worker authentication
@@ -32,30 +65,6 @@ def get_worker_id(
 
 
 # =========================
-# Queries
-# =========================
-@router.get("/with-sessions")
-def get_users_with_sessions(db: Session = Depends(get_db)):
-    users = (
-        db.query(User)
-        .filter(
-            User.worker_id.is_(None),
-            User.session_string.isnot(None),
-            User.is_registered.is_(True),
-        )
-        .all()
-    )
-
-    return [
-        {
-            "telegram_id": u.telegram_id,
-            "session_string": u.session_string,
-        }
-        for u in users
-    ]
-
-
-# =========================
 # Worker → claim users
 # =========================
 @router.post("/claim")
@@ -64,19 +73,19 @@ def claim_users(
     worker_id: str = Depends(get_worker_id),
     db: Session = Depends(get_db),
 ):
-    try:
-        STALE_AFTER = timedelta(seconds=45)
-        now = datetime.utcnow()
+    STALE_AFTER = timedelta(seconds=45)
+    now = datetime.utcnow()
 
+    try:
         users = (
             db.query(User)
-            .join(TelegramSession, TelegramSession.user_id == User.id)
+            .options(joinedload(User.telegram_session))
             .filter(
                 User.is_registered.is_(True),
-                TelegramSession.session_string.isnot(None),
+                # faqat session mavjud bo‘lgan userlar
+                User.telegram_session.has(TelegramSession.session_string.isnot(None)),
                 or_(
                     User.worker_id.is_(None),
-                    User.worker_active.is_(False),
                     and_(
                         User.last_seen_at.isnot(None),
                         User.last_seen_at < now - STALE_AFTER,
@@ -95,16 +104,13 @@ def claim_users(
         for u in users:
             u.worker_id = worker_id
             u.worker_active = True
-            # claim paytida ham update qilamiz — boshqa worker “stale” deb tortib ketmasin
-            u.last_seen_at = now
 
         db.commit()
 
         return [
             {
                 "telegram_id": u.telegram_id,
-                # ✅ session_string endi property orqali TelegramSession’dan keladi
-                "session_string": u.session_string,
+                "session_string": u.telegram_session.session_string if u.telegram_session else None,
             }
             for u in users
         ]
@@ -151,12 +157,26 @@ def get_active_users(db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/{telegram_id}", response_model=UserRead)
-def get_user(telegram_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.telegram_id == telegram_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+@router.get("/with-sessions")
+def get_users_with_sessions(db: Session = Depends(get_db)):
+    users = (
+        db.query(User)
+        .filter(
+            User.worker_id.is_(None),
+            User.session_string.isnot(None),
+            User.is_registered.is_(True),
+        )
+        .all()
+    )
+
+    return [
+        {
+            "telegram_id": u.telegram_id,
+            "session_string": u.session_string,
+        }
+        for u in users
+    ]
+
 
 
 # =========================
@@ -246,11 +266,19 @@ def worker_disconnected(telegram_id: int, db: Session = Depends(get_db)):
 
 @router.post("/session-revoked/{telegram_id}")
 def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.telegram_session))
+        .filter(User.telegram_id == telegram_id)
+        .first()
+    )
     if not user:
         return {"status": "ignored"}
 
-    user.session_string = None
+    # TelegramSession’ni tozalaymiz
+    if user.telegram_session:
+        user.telegram_session.session_string = None
+
     user.is_registered = False
     user.worker_active = False
     user.worker_id = None

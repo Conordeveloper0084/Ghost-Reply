@@ -14,13 +14,14 @@ async def get_or_create_client(telegram_id: int, session_string: str) -> Telegra
             await client.connect()
         return client
 
-    client = TelegramClient(
-        StringSession(session_string),
-        API_ID,
-        API_HASH,
-    )
+    client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
 
     await client.connect()
+
+    if not await client.is_user_authorized():
+    # bu session invalid
+        await client.disconnect()
+        raise AuthKeyUnregisteredError(request=None)  # yoki custom Exception
 
     # 🔥 TO‘G‘RI EVENT HANDLER
     @client.on(events.NewMessage())

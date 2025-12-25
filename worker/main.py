@@ -55,7 +55,10 @@ async def start_client(user: dict):
 
         # 🔴 MUHIM: real telegram connection check
         if not await client.is_user_authorized():
-            raise SessionRevokedError(request=None)
+            logger.warning(f"🔌 Session invalid for {telegram_id}")
+            async with httpx.AsyncClient(timeout=5) as http:
+                await http.post(f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}")
+            return
 
         logger.info(f"🟢 Telegram session alive for {telegram_id}")
 
