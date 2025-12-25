@@ -31,9 +31,14 @@ router = Router()
 # ============================
 
 async def is_admin(telegram_id: int) -> bool:
-    async with httpx.AsyncClient() as client:
-        res = await client.get(f"{BACKEND_URL}/api/admin/check/{telegram_id}")
-    return res.status_code == 200
+    async with httpx.AsyncClient(timeout=5) as client:
+        res = await client.get(f"{BACKEND_URL}/api/users/{telegram_id}")
+
+    if res.status_code != 200:
+        return False
+
+    user = res.json()
+    return user.get("is_admin") is True
 
 
 # ============================
