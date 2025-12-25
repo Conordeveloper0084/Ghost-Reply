@@ -38,6 +38,9 @@ class User(Base):
     telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
 
     name = Column(String)
+
+    is_admin = Column(Boolean, default=False, nullable=False)
+    
     username = Column(String, nullable=True)
     phone = Column(String, nullable=True)
 
