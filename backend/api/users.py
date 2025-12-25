@@ -1,24 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
-from datetime import datetime, timedelta
-from sqlalchemy import or_, and_
-from datetime import datetime, timedelta
-from sqlalchemy import or_, and_
-from backend.models.telegram_session import TelegramSession
 
-from sqlalchemy.orm import joinedload
+from fastapi import APIRouter, Depends, HTTPException, Header
+from pydantic import BaseModel
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session, joinedload
 
-from backend.models.telegram_session import TelegramSession
 from backend.core.db import get_db
-from backend.models.user import User, PlanEnum
-from backend.schemas.user import (
-    UserCreate,
-    UserRead,
-    UserUpdatePhone,
-)
+from backend.models.telegram_session import TelegramSession
+from backend.models.user import PlanEnum, User
+from backend.schemas.user import UserCreate, UserRead, UserUpdatePhone
 
 router = APIRouter(prefix="/users", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -103,7 +94,8 @@ def claim_users(
 
         for u in users:
             u.worker_id = worker_id
-            u.worker_active = True
+            # NOTE: worker_active should become True only after heartbeat
+            u.worker_active = False
 
         db.commit()
 
@@ -147,11 +139,20 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
 # =========================
 @router.get("/active")
 def get_active_users(db: Session = Depends(get_db)):
-    users = db.query(User).filter(User.worker_active.is_(True)).all()
+    users = (
+        db.query(User)
+        .options(joinedload(User.telegram_session))
+        .filter(
+            User.worker_active.is_(True),
+            User.telegram_session.has(TelegramSession.session_string.isnot(None)),
+        )
+        .all()
+    )
+
     return [
         {
             "telegram_id": u.telegram_id,
-            "session_string": u.session_string,
+            "session_string": u.telegram_session.session_string if u.telegram_session else None,
         }
         for u in users
     ]
@@ -161,10 +162,11 @@ def get_active_users(db: Session = Depends(get_db)):
 def get_users_with_sessions(db: Session = Depends(get_db)):
     users = (
         db.query(User)
+        .options(joinedload(User.telegram_session))
         .filter(
             User.worker_id.is_(None),
-            User.session_string.isnot(None),
             User.is_registered.is_(True),
+            User.telegram_session.has(TelegramSession.session_string.isnot(None)),
         )
         .all()
     )
@@ -172,7 +174,7 @@ def get_users_with_sessions(db: Session = Depends(get_db)):
     return [
         {
             "telegram_id": u.telegram_id,
-            "session_string": u.session_string,
+            "session_string": u.telegram_session.session_string if u.telegram_session else None,
         }
         for u in users
     ]
@@ -199,12 +201,32 @@ def complete_registration(
         raise HTTPException(status_code=404, detail="User not found")
 
     user.phone = data.phone
-    user.session_string = data.session_string
     user.username = data.username
-    # This is the ONLY place where registration is completed
+
+    # Save session into TelegramSession (1-to-1)
+    tg_session = (
+        db.query(TelegramSession)
+        .filter(TelegramSession.user_id == user.id)
+        .first()
+    )
+    if not tg_session:
+        tg_session = TelegramSession(
+            user_id=user.id,
+            telegram_id=user.telegram_id,
+            session_string=data.session_string,
+        )
+        db.add(tg_session)
+    else:
+        tg_session.session_string = data.session_string
+
+    # Registration completed
     user.is_registered = True
-    user.worker_active = True
     user.registered_at = datetime.utcnow()
+
+    # Make user re-claimable by workers; heartbeat will set active
+    user.worker_id = None
+    user.worker_active = False
+    user.last_seen_at = datetime.utcnow()
 
     db.commit()
     db.refresh(user)
@@ -259,6 +281,7 @@ def worker_disconnected(telegram_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     user.worker_active = False
+    user.worker_id = None
     user.last_seen_at = None
     db.commit()
 
