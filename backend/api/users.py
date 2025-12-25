@@ -55,9 +55,6 @@ def get_worker_id(
     return x_worker_id
 
 
-# =========================
-# Worker → claim users
-# =========================
 @router.post("/claim")
 def claim_users(
     limit: int = 50,
@@ -68,13 +65,13 @@ def claim_users(
     now = datetime.utcnow()
 
     try:
-        users = (
-            db.query(User)
-            .options(joinedload(User.telegram_session))
+        # IMPORTANT: joinedload ishlatmaymiz (outer join + FOR UPDATE muammosi)
+        rows = (
+            db.query(User, TelegramSession.session_string)
+            .join(TelegramSession, TelegramSession.user_id == User.id)  # INNER JOIN
             .filter(
                 User.is_registered.is_(True),
-                # faqat session mavjud bo‘lgan userlar
-                User.telegram_session.has(TelegramSession.session_string.isnot(None)),
+                TelegramSession.session_string.isnot(None),
                 or_(
                     User.worker_id.is_(None),
                     and_(
@@ -85,26 +82,25 @@ def claim_users(
             )
             .order_by(User.last_seen_at.asc().nullslast())
             .limit(limit)
-            .with_for_update(skip_locked=True)
+            .with_for_update(of=User, skip_locked=True)  # faqat users row’larini lock qiladi
             .all()
         )
 
-        if not users:
+        if not rows:
             return []
 
-        for u in users:
+        for u, _session in rows:
             u.worker_id = worker_id
-            # NOTE: worker_active should become True only after heartbeat
-            u.worker_active = False
+            u.worker_active = True
 
         db.commit()
 
         return [
             {
                 "telegram_id": u.telegram_id,
-                "session_string": u.telegram_session.session_string if u.telegram_session else None,
+                "session_string": session_string,
             }
-            for u in users
+            for (u, session_string) in rows
         ]
 
     except Exception:
