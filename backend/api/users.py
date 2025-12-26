@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from backend.core.db import get_db
 from backend.models.telegram_session import TelegramSession
 from backend.models.user import PlanEnum, User
+from backend.models.admin import Admin
 from backend.schemas.user import UserCreate, UserRead, UserUpdatePhone
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -30,12 +31,22 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
     if user.telegram_session and user.telegram_session.session_string:
         session_string = user.telegram_session.session_string
 
+    is_admin = (
+        db.query(Admin)
+        .filter(
+            Admin.telegram_id == user.telegram_id,
+            Admin.is_active == True,
+        )
+        .first()
+        is not None
+    )
+
     # JSON qilib qaytaramiz (bot shu JSON’ni ishlatadi)
     return {
         "telegram_id": user.telegram_id,
         "name": user.name,
         "username": user.username,
-        "is_admin": user.is_admin,  
+        "is_admin": is_admin,  
         "phone": user.phone,
         "plan": user.plan,
         "is_registered": user.is_registered,

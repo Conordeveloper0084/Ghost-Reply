@@ -5,6 +5,7 @@ import signal
 
 import httpx
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
+
 from worker.session_loader import claim_users_for_worker
 from worker.client_manager import get_or_create_client
 from worker.utils import setup_shutdown_hooks
@@ -15,8 +16,9 @@ from worker.config import (
     BACKEND_URL,
 )
 
-# Adaptive sleep timings (seconds)
-ACTIVE_SLEEP = 0.5
+# Timing config (seconds)
+HEARTBEAT_INTERVAL = 15
+SESSION_CHECK_INTERVAL = 25
 IDLE_SLEEP = 8
 ERROR_SLEEP = 10
 
@@ -27,8 +29,6 @@ setup_shutdown_hooks()
 
 ACTIVE_TASKS: dict[int, asyncio.Task] = {}
 SHUTDOWN_EVENT = asyncio.Event()
-
-HEARTBEAT_INTERVAL = 15  # seconds
 
 
 async def heartbeat_loop(telegram_id: int):
@@ -43,30 +43,53 @@ async def heartbeat_loop(telegram_id: int):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
 
+async def session_monitor(client, telegram_id: int):
+    async with httpx.AsyncClient(timeout=5) as http:
+        while not SHUTDOWN_EVENT.is_set():
+            try:
+                if not await client.is_user_authorized():
+                    logger.warning(f"🔌 Session revoked (monitor) for {telegram_id}")
+                    await http.post(
+                        f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                    )
+                    await client.disconnect()
+                    break
+            except Exception as e:
+                logger.warning(f"⚠️ Session monitor error for {telegram_id}: {e}")
+
+            await asyncio.sleep(SESSION_CHECK_INTERVAL)
+
+
 async def start_client(user: dict):
     telegram_id = user["telegram_id"]
     session_string = user["session_string"]
 
     logger.info(f"🚀 Starting client for {telegram_id}")
+
     heartbeat_task = asyncio.create_task(heartbeat_loop(telegram_id))
+    monitor_task = None
 
     try:
         client = await get_or_create_client(telegram_id, session_string)
 
-        # 🔴 MUHIM: real telegram connection check
         if not await client.is_user_authorized():
-            logger.warning(f"🔌 Session invalid for {telegram_id}")
+            logger.warning(f"🔌 Session invalid at startup for {telegram_id}")
             async with httpx.AsyncClient(timeout=5) as http:
-                await http.post(f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}")
+                await http.post(
+                    f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                )
             return
 
         logger.info(f"🟢 Telegram session alive for {telegram_id}")
+
+        monitor_task = asyncio.create_task(
+            session_monitor(client, telegram_id)
+        )
 
         await client.run_until_disconnected()
 
     except (AuthKeyUnregisteredError, SessionRevokedError):
         logger.warning(f"🔌 Session revoked for {telegram_id}")
-
         async with httpx.AsyncClient(timeout=5) as http:
             await http.post(
                 f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
@@ -77,8 +100,17 @@ async def start_client(user: dict):
 
     finally:
         heartbeat_task.cancel()
-        await asyncio.gather(heartbeat_task, return_exceptions=True)
+        if monitor_task:
+            monitor_task.cancel()
+
+        await asyncio.gather(
+            heartbeat_task,
+            *( [monitor_task] if monitor_task else [] ),
+            return_exceptions=True,
+        )
+
         ACTIVE_TASKS.pop(telegram_id, None)
+        logger.info(f"🧹 Cleaned up client for {telegram_id}")
 
 
 async def graceful_shutdown():
@@ -106,7 +138,6 @@ async def worker_loop():
             users = await claim_users_for_worker()
 
             if not users:
-                logger.debug("😴 No users available to claim, worker idling")
                 await asyncio.sleep(IDLE_SLEEP)
                 continue
 

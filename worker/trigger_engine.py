@@ -7,6 +7,7 @@ import logging
 
 from worker.config import BACKEND_URL
 from worker.utils import normalize_text
+from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +81,26 @@ async def handle_incoming_message(
                 )
                 await asyncio.sleep(1.6)
                 await event.reply(reply_text)
-                logger.info(
-                    f"✅ Reply sent for {telegram_id}"
+                logger.info(f"✅ Reply sent for {telegram_id}")
+
+            except (AuthKeyUnregisteredError, SessionRevokedError):
+                logger.warning(
+                    f"🔌 Session revoked while replying for {telegram_id}"
                 )
+
+                async with httpx.AsyncClient(timeout=5) as http:
+                    await http.post(
+                        f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                    )
+
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+
             except Exception as e:
                 logger.error(
                     f"⚠️ Failed to send reply for {telegram_id}: {repr(e)}"
                 )
+
             break
