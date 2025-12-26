@@ -50,21 +50,24 @@ async def session_monitor(client, telegram_id: int):
                 break
 
             try:
-                if not await client.is_user_authorized():
-                    logger.warning(f"🔌 Session revoked (monitor) for {telegram_id}")
+                res = await http.get(
+                    f"{BACKEND_URL}/api/users/{telegram_id}"
+                )
+                if res.status_code != 200:
+                    break
 
-                    await http.post(
-                        f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                data = res.json()
+                if not data.get("is_registered") or not data.get("worker_active"):
+                    logger.warning(
+                        f"🧨 Backend says STOP for {telegram_id}"
                     )
-                    await http.post(
-                        f"{BACKEND_URL}/api/users/worker-disconnected/{telegram_id}"
-                    )
-
                     await client.disconnect()
                     break
 
             except Exception as e:
-                logger.warning(f"⚠️ Session monitor error for {telegram_id}: {e}")
+                logger.warning(
+                    f"⚠️ Backend health check failed for {telegram_id}: {e}"
+                )
 
             await asyncio.sleep(SESSION_CHECK_INTERVAL)
 

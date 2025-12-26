@@ -246,9 +246,22 @@ def complete_registration(
 # =========================
 @router.post("/heartbeat/{telegram_id}")
 def heartbeat(telegram_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.telegram_session))
+        .filter(User.telegram_id == telegram_id)
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # 🔒 HARD GUARD: no session = no heartbeat
+    if not user.telegram_session or not user.telegram_session.session_string:
+        user.worker_active = False
+        user.worker_id = None
+        user.last_seen_at = None
+        db.commit()
+        raise HTTPException(status_code=403, detail="Session not active")
 
     user.worker_active = True
     user.last_seen_at = datetime.utcnow()

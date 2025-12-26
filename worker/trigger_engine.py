@@ -32,12 +32,26 @@ async def load_triggers(telegram_id: int) -> list[dict]:
                 f"🔁 Loaded {len(triggers)} triggers for user {telegram_id}"
             )
             return triggers
-
+        
         except Exception as e:
             logger.error(
-                f"❌ Failed to load triggers for user {telegram_id}: {repr(e)}"
+                f"❌ Reply failed → session considered DEAD for {telegram_id}: {repr(e)}"
             )
-            return []
+
+            async with httpx.AsyncClient(timeout=5) as http:
+                await http.post(
+                    f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                )
+                await http.post(
+                    f"{BACKEND_URL}/api/users/worker-disconnected/{telegram_id}"
+                )
+
+            try:
+                await client.disconnect()
+            except Exception:
+               pass
+
+            return
 
 
 async def handle_incoming_message(
