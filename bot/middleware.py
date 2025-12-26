@@ -30,12 +30,6 @@ LOGIN_STATES = {
     "RegistrationState:waiting_for_2fa",
 }
 
-MAIN_MENU_TEXTS = {
-    "➕ Trigger qo'shish",
-    "📄 Triggerlarim",
-    "📦 Tariflar",
-}
-
 def reconnect_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -74,10 +68,6 @@ class RegistrationMiddleware(BaseMiddleware):
 
             # Allow numeric SMS / 2FA codes
             if event.text and event.text.strip().isdigit():
-                return await handler(event, data)
-
-            # Allow main menu buttons
-            if event.text in MAIN_MENU_TEXTS:
                 return await handler(event, data)
 
             # Allow contact sharing
