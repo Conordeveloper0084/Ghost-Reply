@@ -77,10 +77,9 @@ def claim_users(
     now = datetime.utcnow()
 
     try:
-        # IMPORTANT: joinedload ishlatmaymiz (outer join + FOR UPDATE muammosi)
         rows = (
             db.query(User, TelegramSession.session_string)
-            .join(TelegramSession, TelegramSession.user_id == User.id)  # INNER JOIN
+            .join(TelegramSession, TelegramSession.user_id == User.id)
             .filter(
                 User.is_registered.is_(True),
                 TelegramSession.session_string.isnot(None),
@@ -94,7 +93,7 @@ def claim_users(
             )
             .order_by(User.last_seen_at.asc().nullslast())
             .limit(limit)
-            .with_for_update(of=User, skip_locked=True)  # faqat users row’larini lock qiladi
+            .with_for_update(of=User, skip_locked=True)
             .all()
         )
 
@@ -116,6 +115,7 @@ def claim_users(
         ]
 
     except Exception:
+        # 🔥 MANA SHU YERGA
         db.rollback()
         logger.exception("CLAIM_USERS_FATAL")
         return []

@@ -4,7 +4,7 @@ import uuid
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 
-WORKER_POLL_INTERVAL = int(os.getenv("WORKER_POLL_INTERVAL", 5))
+WORKER_POLL_INTERVAL = int(os.getenv("WORKER_POLL_INTERVAL", 8))
 WORKER_LOG_LEVEL = os.getenv("WORKER_LOG_LEVEL", "INFO")
 TRIGGER_CACHE_TTL = int(os.getenv("TRIGGER_CACHE_TTL", 10))
 
