@@ -45,15 +45,24 @@ async def heartbeat_loop(telegram_id: int):
 
 async def session_monitor(client, telegram_id: int):
     async with httpx.AsyncClient(timeout=5) as http:
-        while not SHUTDOWN_EVENT.is_set():
+        while True:
+            if not client.is_connected():
+                break
+
             try:
                 if not await client.is_user_authorized():
                     logger.warning(f"🔌 Session revoked (monitor) for {telegram_id}")
+
                     await http.post(
                         f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
                     )
+                    await http.post(
+                        f"{BACKEND_URL}/api/users/worker-disconnected/{telegram_id}"
+                    )
+
                     await client.disconnect()
                     break
+
             except Exception as e:
                 logger.warning(f"⚠️ Session monitor error for {telegram_id}: {e}")
 
