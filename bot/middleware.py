@@ -6,7 +6,6 @@ from aiogram.fsm.context import FSMContext
 import httpx
 from .config import BACKEND_URL
 
-# Callbacks that are ALWAYS allowed (even without registration)
 ALLOWED_CALLBACKS = {
     "start_instructions",
     "start_privacy",
@@ -17,134 +16,112 @@ ALLOWED_CALLBACKS = {
     "login_help",
 }
 
-# Text commands always allowed
-ALLOWED_TEXT_PREFIXES = (
-    "/start",
-    "+",        # phone number input
-)
-
-# FSM states related to Telegram login
 LOGIN_STATES = {
     "RegistrationState:waiting_for_phone",
     "RegistrationState:waiting_for_sms_code",
     "RegistrationState:waiting_for_2fa",
 }
 
+MAIN_MENU_TEXTS = {
+    "➕ Trigger qo'shish",
+    "📄 Triggerlarim",
+    "📦 Tariflar",
+}
+
 def reconnect_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🔌 Akkountni qayta ulash",
-                    callback_data="start_link_account"
-                )
-            ]
+            [InlineKeyboardButton(text="🔌 Akkountni qayta ulash", callback_data="start_link_account")]
         ]
     )
-
 
 class RegistrationMiddleware(BaseMiddleware):
     async def __call__(self, handler, event, data):
         state: FSMContext | None = data.get("state")
         user_id = None
 
-        # ===================== MESSAGE =====================
+        # ------------- Identify user + allow-lists -------------
         if isinstance(event, Message):
             user_id = event.from_user.id
 
-            # Always allow /start
+            # /start always allowed
             if event.text and event.text.startswith("/start"):
                 return await handler(event, data)
 
-            # Allow during login FSM states (VERY IMPORTANT)
+            # allow during login flow
             if state:
                 current_state = await state.get_state()
                 if current_state in LOGIN_STATES:
                     return await handler(event, data)
 
-            # Allow phone numbers
+            # allow phone + numeric codes + contact
             if event.text and event.text.strip().startswith("+"):
                 return await handler(event, data)
-
-            # Allow numeric SMS / 2FA codes
             if event.text and event.text.strip().isdigit():
                 return await handler(event, data)
-
-            # Allow contact sharing
             if event.contact:
                 return await handler(event, data)
 
-        # ===================== CALLBACK =====================
+            # allow main menu texts (still goes through backend check below!)
+            # (BUNI bypass qilmaymiz — tekshiruvdan o‘tsin)
+
         elif isinstance(event, CallbackQuery):
             user_id = event.from_user.id
 
-            # 🔥 ALWAYS allow registration / start related callbacks
+            # allow registration/start callbacks
             if event.data in ALLOWED_CALLBACKS:
                 return await handler(event, data)
 
-            # 🔥 Any other callback will be checked later
-
-        # ===================== BACKEND CHECK =====================
-        # 🔥 Do NOT block callbacks here — callbacks already passed allow-list
-        if isinstance(event, CallbackQuery):
-            return await handler(event, data)
+        # If no user_id -> allow
         if not user_id:
             return await handler(event, data)
 
-        async with httpx.AsyncClient() as client:
-            try:
+        # ------------- Backend check for BOTH Message and CallbackQuery -------------
+        try:
+            async with httpx.AsyncClient(timeout=6) as client:
                 res = await client.get(f"{BACKEND_URL}/api/users/{user_id}")
+                res.raise_for_status()
                 info = res.json()
-            except Exception as e:
-                print("⚠️ Backend unreachable:", e)
-                return await handler(event, data)
+        except Exception as e:
+            # Backend down -> allow (yoki xohlasangiz blok qilamiz)
+            print("⚠️ Backend unreachable:", e)
+            return await handler(event, data)
 
-        is_registered = info.get("is_registered", False)
-        worker_active = info.get("worker_active", False)
+        is_registered = bool(info.get("is_registered", False))
+        worker_active = bool(info.get("worker_active", False))
+        session_string = info.get("session_string")  # <- MUHIM
 
-        # ===================== NOT REGISTERED =====================
+        # --- Hard stop: no session_string -> account disconnected
+        # (Devicesdan o‘chirganingizda worker /session-revoked bosib, session_string None bo‘lishi kerak)
+        if not session_string:
+            worker_active = False
+
         if not is_registered:
+            txt = (
+                "🔐 Avval Telegram akkauntingizni ulang.\n\n"
+                "👇 Boshlash uchun:\n"
+                "🔌 Akkount ulash tugmasini bosing."
+            )
             if isinstance(event, CallbackQuery):
                 await event.answer()
-                await event.message.answer(
-                    "🔐 Avval Telegram akkauntingizni ulang.\n\n"
-                    "👇 Boshlash uchun:\n"
-                    "🔌 Akkount ulash tugmasini bosing.",
-                    reply_markup=reconnect_keyboard()
-                )
-                return
-            if isinstance(event, Message):
-                await event.answer(
-                    "🔐 Avval Telegram akkauntingizni ulang.\n\n"
-                    "👇 Boshlash uchun:\n"
-                    "🔌 Akkount ulash tugmasini bosing.",
-                    reply_markup=reconnect_keyboard()
-                )
-                return
+                await event.message.answer(txt, reply_markup=reconnect_keyboard())
+            else:
+                await event.answer(txt, reply_markup=reconnect_keyboard())
+            return
 
-        # ===================== WORKER DISCONNECTED =====================
         if is_registered and not worker_active:
+            txt = (
+                "⚠️ Telegram akkauntingiz bilan aloqa uzilgan.\n\n"
+                "Sababi:\n"
+                "• Siz Telegram → Privacy → Devices bo‘limidan GhostReply qurilmasini o‘chirgansiz\n\n"
+                "👉 Yechim:\n"
+                "Akkountni qayta ulang."
+            )
             if isinstance(event, CallbackQuery):
                 await event.answer()
-                await event.message.answer(
-                    "⚠️ Telegram akkauntingiz bilan aloqa uzilgan.\n\n"
-                    "Sababi:\n"
-                    "• Siz Telegram → Privacy → Devices bo‘limidan GhostReply qurilmasini o‘chirgansiz\n\n"
-                    "👉 Yechim:\n"
-                    "Akkountni qayta ulang.",
-                    reply_markup=reconnect_keyboard()
-                )
-                return
-            if isinstance(event, Message):
-                await event.answer(
-                    "⚠️ Telegram akkauntingiz bilan aloqa uzilgan.\n\n"
-                    "Sababi:\n"
-                    "• Siz Telegram → Privacy → Devices bo‘limidan GhostReply qurilmasini o‘chirgansiz\n\n"
-                    "👉 Yechim:\n"
-                    "Akkountni qayta ulang.",
-                    reply_markup=reconnect_keyboard()
-                )
-                return
+                await event.message.answer(txt, reply_markup=reconnect_keyboard())
+            else:
+                await event.answer(txt, reply_markup=reconnect_keyboard())
+            return
 
-        # ===================== ALLOW =====================
         return await handler(event, data)

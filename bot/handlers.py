@@ -32,6 +32,39 @@ class EditTriggerState(StatesGroup):
     waiting_for_reply = State()
 
 
+
+async def ensure_account_connected(telegram_id: int, message_or_callback):
+    async with httpx.AsyncClient(timeout=5) as client:
+        res = await client.get(f"{BACKEND_URL}/api/users/{telegram_id}")
+
+    if res.status_code == 403:
+        await message_or_callback.answer(
+            "🔌 <b>Akkountingiz uzilgan</b>\n\n"
+            "Telegram qurilmalar bo‘limidan GhostReply sessiyasi o‘chirilgan.\n"
+            "Iltimos, akkountingizni qayta ulang.",
+            parse_mode="HTML",
+        )
+        return False
+
+    if res.status_code != 200:
+        await message_or_callback.answer(
+            "❌ Akkount holatini tekshirib bo‘lmadi."
+        )
+        return False
+
+    user = res.json()
+
+    if not user.get("is_registered") or not user.get("session_string"):
+        await message_or_callback.answer(
+            "🔐 Akkount ulanmagan yoki uzilgan.\n"
+            "Iltimos, qayta ulang.",
+            parse_mode="HTML",
+        )
+        return False
+
+    return True
+
+
 # ============================
 #         /start
 # ============================
@@ -443,6 +476,8 @@ async def log_out(message: Message, state: FSMContext):
 
 @router.message(F.text == "➕ Trigger qo'shish")
 async def add_trigger_start(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        return
     await state.clear()
 
     telegram_id = message.from_user.id
@@ -484,6 +519,9 @@ async def add_trigger_start(message: Message, state: FSMContext):
 
 @router.message(AddTriggerState.waiting_for_trigger)
 async def add_trigger_text(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        await state.clear()
+        return
     text = message.text.lower().strip()
     if len(text) < 2:
         await message.answer("❌ Trigger juda qisqa. Qayta kiriting kamida 2 ta belgi:")
@@ -496,6 +534,9 @@ async def add_trigger_text(message: Message, state: FSMContext):
 
 @router.message(AddTriggerState.waiting_for_reply)
 async def add_trigger_reply(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        await state.clear()
+        return
     data = await state.get_data()
 
     payload = {
@@ -536,6 +577,8 @@ async def add_trigger_reply(message: Message, state: FSMContext):
 
 @router.message(F.text == "📄 Triggerlarim")
 async def list_triggers(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        return
     await state.clear()
     user_id = message.from_user.id
 
@@ -570,6 +613,9 @@ async def list_triggers(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("trigger_open:"))
 async def open_trigger(callback: CallbackQuery, state: FSMContext):
+    if not await ensure_account_connected(callback.from_user.id, callback.message):
+        await callback.answer()
+        return
     trigger_id_str = callback.data.split(":", 1)[1]
     if not trigger_id_str.isdigit():
         await callback.answer("❌ Noto‘g‘ri trigger.", show_alert=True)
@@ -609,6 +655,9 @@ async def open_trigger(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("trigger_delete:"))
 async def confirm_delete_trigger(callback: CallbackQuery, state: FSMContext):
+    if not await ensure_account_connected(callback.from_user.id, callback.message):
+        await callback.answer()
+        return
     trigger_id_str = callback.data.split(":", 1)[1]
     try:
         trigger_id = int(trigger_id_str)
@@ -676,6 +725,9 @@ async def triggers_back(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("trigger_edit:"))
 async def edit_trigger_start(callback: CallbackQuery, state: FSMContext):
+    if not await ensure_account_connected(callback.from_user.id, callback.message):
+        await callback.answer()
+        return
     trigger_id_str = callback.data.split(":", 1)[1]
     try:
         trigger_id = int(trigger_id_str)
@@ -723,6 +775,9 @@ async def plans_back(callback: CallbackQuery):
 
 @router.message(EditTriggerState.waiting_for_trigger)
 async def edit_trigger_text(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        await state.clear()
+        return
     new_text = message.text.lower().strip()
     if len(new_text) < 2:
         await message.answer("❌ Trigger juda qisqa. Qayta kiriting, kamida 2 ta belgi:")
@@ -735,6 +790,9 @@ async def edit_trigger_text(message: Message, state: FSMContext):
 
 @router.message(EditTriggerState.waiting_for_reply)
 async def edit_trigger_auto_save(message: Message, state: FSMContext):
+    if not await ensure_account_connected(message.from_user.id, message):
+        await state.clear()
+        return
     data = await state.get_data()
     trigger_id = data.get("trigger_id")
     new_trigger_text = data.get("new_trigger_text")

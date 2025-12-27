@@ -43,31 +43,33 @@ async def heartbeat_loop(telegram_id: int):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
 
+
 async def session_monitor(client, telegram_id: int):
     async with httpx.AsyncClient(timeout=5) as http:
-        while True:
+        while not SHUTDOWN_EVENT.is_set():
             if not client.is_connected():
                 break
 
             try:
-                res = await http.get(
-                    f"{BACKEND_URL}/api/users/{telegram_id}"
-                )
-                if res.status_code != 200:
-                    break
+                # REAL API ping (revoked bo‘lsa shu yerda yiqiladi)
+                await client.get_me()
+            except (AuthKeyUnregisteredError, SessionRevokedError, UnauthorizedError):
+                logger.warning(f"🔌 Session revoked (monitor API) for {telegram_id}")
 
-                data = res.json()
-                if not data.get("is_registered") or not data.get("worker_active"):
-                    logger.warning(
-                        f"🧨 Backend says STOP for {telegram_id}"
-                    )
+                # ikkalasini ham uramiz: session + worker status
+                try:
+                    await http.post(f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}")
+                    await http.post(f"{BACKEND_URL}/api/users/worker-disconnected/{telegram_id}")
+                except Exception:
+                    pass
+
+                try:
                     await client.disconnect()
-                    break
-
+                except Exception:
+                    pass
+                break
             except Exception as e:
-                logger.warning(
-                    f"⚠️ Backend health check failed for {telegram_id}: {e}"
-                )
+                logger.warning(f"⚠️ Session monitor error for {telegram_id}: {e}")
 
             await asyncio.sleep(SESSION_CHECK_INTERVAL)
 
