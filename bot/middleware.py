@@ -10,6 +10,7 @@ ALLOWED_CALLBACKS = {
     "start_instructions",
     "start_privacy",
     "start_link_account",
+    "confirm_link_account"
     "check_account",
     "back_to_start",
     "sms_help",
