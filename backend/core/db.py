@@ -20,7 +20,7 @@ engine = create_engine(
 
     # 🔥 MUHIM: Railway Postgres + SSL barqarorligi uchun
     pool_size=5,          # nechta doimiy connection
-    max_overflow=2,       # vaqtinchalik qo‘shimcha connection
+    max_overflow=10,       # vaqtinchalik qo‘shimcha connection
     pool_pre_ping=True,   # o‘lik connection’ni avtomatik tekshiradi
     pool_recycle=300,     # 5 daqiqada connection’ni yangilaydi
 )
