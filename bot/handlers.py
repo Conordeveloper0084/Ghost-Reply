@@ -325,9 +325,10 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
     user = res.json()
 
     session_string = user.get("session_string")
+    is_registered = user.get("is_registered") is True
     worker_active = user.get("worker_active") is True
 
-    # 1️⃣ Session yo‘q → haqiqiy uzilish
+    # 1️⃣ Session yo‘q → HAQIQIY uzilish
     if session_string is None:
         await callback.message.answer(
             "🔌 <b>Akkountingiz uzilgan</b>\n\n"
@@ -339,7 +340,18 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # 2️⃣ Session bor, lekin worker hali ulanmagan → NORMAL HOLAT
+    # 2️⃣ Session bor, lekin registration hali to‘liq emas (kamdan-kam holat)
+    if not is_registered:
+        await callback.message.answer(
+            "⏳ <b>Akkount tayyorlanmoqda...</b>\n\n"
+            "Maʼlumotlar saqlanmoqda, iltimos bir oz kuting va yana tekshiring.",
+            parse_mode="HTML",
+            reply_markup=check_account_kb,
+        )
+        await callback.answer()
+        return
+
+    # 3️⃣ Session bor, registration bor, lekin worker hali ulanmagan → NORMAL
     if not worker_active:
         await callback.message.answer(
             "⏳ <b>Akkount ulanmoqda...</b>\n\n"
@@ -351,7 +363,7 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # 3️⃣ Session bor va worker active → hammasi joyida
+    # 4️⃣ Hammasi joyida
     await state.clear()
     await callback.message.answer(
         "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
