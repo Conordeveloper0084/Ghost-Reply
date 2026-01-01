@@ -27,34 +27,40 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    session_string = None
-    if user.telegram_session and user.telegram_session.session_string:
-        session_string = user.telegram_session.session_string
+    # 🔑 SESSION STRINGNI ANIQLAYMIZ
+    session_string = (
+        user.telegram_session.session_string
+        if user.telegram_session
+        else None
+    )
+
+    # 🔒 HAQIQIY (EFFECTIVE) HOLAT
+    effective_is_registered = bool(user.is_registered and session_string)
+    effective_worker_active = bool(user.worker_active and session_string)
 
     is_admin = (
         db.query(Admin)
         .filter(
             Admin.telegram_id == user.telegram_id,
-            Admin.is_active == True,
+            Admin.is_active.is_(True),
         )
         .first()
         is not None
     )
 
-    # Enforce single source of truth for connection state
-    effective_is_registered = user.is_registered and session_string is not None
-    effective_worker_active = user.worker_active and session_string is not None
-
-    # JSON qilib qaytaramiz (bot shu JSON’ni ishlatadi)
+    # ✅ BOT VA MIDDLEWARE SHU JSON’GA ISHONADI
     return {
         "telegram_id": user.telegram_id,
         "name": user.name,
         "username": user.username,
-        "is_admin": is_admin,  
+        "is_admin": is_admin,
         "phone": user.phone,
         "plan": user.plan,
+
+        # 🔥 MUHIM QISM
         "is_registered": effective_is_registered,
         "worker_active": effective_worker_active,
+
         "worker_id": user.worker_id,
         "last_seen_at": user.last_seen_at.isoformat() if user.last_seen_at else None,
         "session_string": session_string,
@@ -326,14 +332,16 @@ def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
     if not user:
         return {"status": "ignored"}
 
-    # TelegramSession’ni tozalaymiz
+    # ✅ TELEGRAM SESSIONNI BUTUNLAY O‘CHIRAMIZ
     if user.telegram_session:
-        user.telegram_session.session_string = None
+        db.delete(user.telegram_session)
 
-    # Revoking a session does NOT undo registration, only connection state
     user.worker_active = False
     user.worker_id = None
     user.last_seen_at = None
+
+    # ❗ MUHIM: is_registered NI O‘CHIRMAYMIZ
+    # user.is_registered = False  ❌ YO‘Q
 
     db.commit()
     return {"status": "revoked"}
