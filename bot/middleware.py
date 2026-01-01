@@ -17,6 +17,13 @@ ALLOWED_CALLBACKS = {
     "login_help",
 }
 
+PRE_LINK_CALLBACKS = {
+    "start_link_account",
+    "confirm_link_account",
+    "cancel_link_account",
+    "check_account",
+}
+
 LOGIN_STATES = {
     "RegistrationState:waiting_for_phone",
     "RegistrationState:waiting_for_sms_code",
@@ -69,7 +76,11 @@ class RegistrationMiddleware(BaseMiddleware):
         elif isinstance(event, CallbackQuery):
             user_id = event.from_user.id
 
-            # allow registration/start callbacks
+            # allow registration / linking callbacks BEFORE account is connected
+            if event.data in PRE_LINK_CALLBACKS:
+                return await handler(event, data)
+
+            # allow static info callbacks
             if event.data in ALLOWED_CALLBACKS:
                 return await handler(event, data)
 
@@ -92,16 +103,15 @@ class RegistrationMiddleware(BaseMiddleware):
         worker_active = bool(info.get("worker_active", False))
         session_string = info.get("session_string")  # <- MUHIM
 
-        # --- Hard stop: no session_string -> account disconnected
-        # (Devicesdan o‘chirganingizda worker /session-revoked bosib, session_string None bo‘lishi kerak)
+        # --- Session truth: no session_string ALWAYS means disconnected
         if not session_string:
             worker_active = False
+            is_registered = False
 
         if not is_registered:
             txt = (
-                "🔐 Avval Telegram akkauntingizni ulang.\n\n"
-                "👇 Boshlash uchun:\n"
-                "🔌 Akkount ulash tugmasini bosing."
+                "🔐 Telegram akkauntingiz hali ulanmagan yoki uzilgan.\n\n"
+                "👇 Davom etish uchun akkountni ulang:"
             )
             if isinstance(event, CallbackQuery):
                 await event.answer()

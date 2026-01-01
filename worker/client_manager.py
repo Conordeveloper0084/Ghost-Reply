@@ -1,14 +1,32 @@
 from __future__ import annotations
 from typing import Dict
+import asyncio
+import httpx
 
 from telethon import TelegramClient, events
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 from telethon.sessions import StringSession
 
-from worker.config import API_ID, API_HASH
+from worker.config import API_ID, API_HASH, BACKEND_URL
 from worker.trigger_engine import handle_incoming_message
 
 _clients: Dict[int, TelegramClient] = {}
+
+
+async def monitor_session_revoked(telegram_id: int, client: TelegramClient) -> None:
+    while True:
+        try:
+            await client.get_me()
+            await asyncio.sleep(10)
+        except (AuthKeyUnregisteredError, SessionRevokedError):
+            async with httpx.AsyncClient(timeout=5) as http:
+                await http.post(
+                    f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
+                )
+            await drop_client(telegram_id)
+            return
+        except Exception:
+            await asyncio.sleep(10)
 
 
 async def drop_client(telegram_id: int) -> None:
@@ -51,4 +69,5 @@ async def get_or_create_client(telegram_id: int, session_string: str) -> Telegra
         await handle_incoming_message(client, event, telegram_id)
 
     _clients[telegram_id] = client
+    asyncio.create_task(monitor_session_revoked(telegram_id, client))
     return client

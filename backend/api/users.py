@@ -41,6 +41,10 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
         is not None
     )
 
+    # Enforce single source of truth for connection state
+    effective_is_registered = user.is_registered and session_string is not None
+    effective_worker_active = user.worker_active and session_string is not None
+
     # JSON qilib qaytaramiz (bot shu JSON’ni ishlatadi)
     return {
         "telegram_id": user.telegram_id,
@@ -49,8 +53,8 @@ def get_user(telegram_id: int, db: Session = Depends(get_db)):
         "is_admin": is_admin,  
         "phone": user.phone,
         "plan": user.plan,
-        "is_registered": user.is_registered,
-        "worker_active": user.worker_active,
+        "is_registered": effective_is_registered,
+        "worker_active": effective_worker_active,
         "worker_id": user.worker_id,
         "last_seen_at": user.last_seen_at.isoformat() if user.last_seen_at else None,
         "session_string": session_string,
@@ -89,6 +93,10 @@ def claim_users(
                         User.last_seen_at.isnot(None),
                         User.last_seen_at < now - STALE_AFTER,
                     ),
+                ),
+                or_(
+                    User.worker_active.is_(False),
+                    User.worker_id.is_(None),
                 ),
             )
             .order_by(User.last_seen_at.asc().nullslast())
@@ -259,7 +267,6 @@ def heartbeat(telegram_id: int, db: Session = Depends(get_db)):
     if not user.telegram_session or not user.telegram_session.session_string:
         user.worker_active = False
         user.worker_id = None
-        user.last_seen_at = None
         db.commit()
         raise HTTPException(status_code=403, detail="Session not active")
 
@@ -323,10 +330,32 @@ def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
     if user.telegram_session:
         user.telegram_session.session_string = None
 
-    user.is_registered = False
+    # Revoking a session does NOT undo registration, only connection state
     user.worker_active = False
     user.worker_id = None
     user.last_seen_at = None
 
     db.commit()
     return {"status": "revoked"}
+
+
+@router.get("/{telegram_id}/connection-status")
+def connection_status(telegram_id: int, db: Session = Depends(get_db)):
+    user = (
+        db.query(User)
+        .options(joinedload(User.telegram_session))
+        .filter(User.telegram_id == telegram_id)
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    has_session = bool(
+        user.telegram_session and user.telegram_session.session_string
+    )
+
+    return {
+        "telegram_id": telegram_id,
+        "connected": has_session,
+        "worker_active": user.worker_active if has_session else False,
+    }
