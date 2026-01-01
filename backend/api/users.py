@@ -338,7 +338,7 @@ def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
 
     user.worker_active = False
     user.worker_id = None
-    user.last_seen_at = None
+    user.last_seen_at = datetime.utcnow()
 
     # ❗ MUHIM: is_registered NI O‘CHIRMAYMIZ
     # user.is_registered = False  ❌ YO‘Q
