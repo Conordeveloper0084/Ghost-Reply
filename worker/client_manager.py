@@ -14,10 +14,14 @@ _clients: Dict[int, TelegramClient] = {}
 
 
 async def monitor_session_revoked(telegram_id: int, client: TelegramClient) -> None:
+    """
+    Background guard: detects REAL Telegram-side revocation.
+    """
     while True:
         try:
             await client.get_me()
             await asyncio.sleep(10)
+
         except (AuthKeyUnregisteredError, SessionRevokedError):
             async with httpx.AsyncClient(timeout=5) as http:
                 await http.post(
@@ -25,6 +29,7 @@ async def monitor_session_revoked(telegram_id: int, client: TelegramClient) -> N
                 )
             await drop_client(telegram_id)
             return
+
         except Exception:
             await asyncio.sleep(10)
 
@@ -39,24 +44,30 @@ async def drop_client(telegram_id: int) -> None:
 
 
 async def get_or_create_client(telegram_id: int, session_string: str) -> TelegramClient:
+    """
+    IMPORTANT RULE:
+    - Session mismatch ≠ revocation
+    - Session mismatch = user re-logged in → rotate client cleanly
+    """
+
+    # 1️⃣ Existing cached client
     if telegram_id in _clients:
         client = _clients[telegram_id]
 
-        # 🔎 Session string mismatch → drop old client
+        # 🔁 Session rotated (user re-login) → recreate client
         if client.session.save() != session_string:
             await drop_client(telegram_id)
-            raise SessionRevokedError(request=None)
+        else:
+            if not client.is_connected():
+                await client.connect()
 
-        if not client.is_connected():
-            await client.connect()
+            if not await client.is_user_authorized():
+                await drop_client(telegram_id)
+                raise SessionRevokedError(request=None)
 
-        if not await client.is_user_authorized():
-            await drop_client(telegram_id)
-            raise SessionRevokedError(request=None)
+            return client
 
-        return client
-
-    # 🆕 Create new client
+    # 2️⃣ Create fresh client
     client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
     await client.connect()
 
