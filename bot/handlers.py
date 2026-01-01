@@ -324,10 +324,10 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
 
     user = res.json()
 
-    is_registered = user.get("is_registered") is True
-    worker_active = user.get("worker_active") is True
     session_string = user.get("session_string")
+    worker_active = user.get("worker_active") is True
 
+    # 1️⃣ Session yo‘q → haqiqiy uzilish
     if session_string is None:
         await callback.message.answer(
             "🔌 <b>Akkountingiz uzilgan</b>\n\n"
@@ -339,30 +339,27 @@ async def check_account(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # ✅ Account is considered linked ONLY if ALL conditions are met
-    if is_registered and not worker_active:
+    # 2️⃣ Session bor, lekin worker hali ulanmagan → NORMAL HOLAT
+    if not worker_active:
         await callback.message.answer(
             "⏳ <b>Akkount ulanmoqda...</b>\n\n"
-            "Sessiya saqlandi, worker ulanmoqda.\n"
-            "Iltimos, 5–10 soniyadan keyin yana tekshirib ko‘ring.",
+            "Telegram bilan aloqa tiklandi.\n"
+            "Worker ulanmoqda, iltimos 5–10 soniyadan keyin yana tekshirib ko‘ring.",
             parse_mode="HTML",
             reply_markup=check_account_kb,
         )
         await callback.answer()
         return
 
-
-#     3️⃣ Hammasi joyida
-    if is_registered and worker_active:
-        await state.clear()
-        await callback.message.answer(
-            "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
-            "Endi triggerlarni yaratishingiz va boshqarishingiz mumkin 👇",
-            parse_mode="HTML",
-            reply_markup=main_menu,
-        )
-        await callback.answer()
-        return
+    # 3️⃣ Session bor va worker active → hammasi joyida
+    await state.clear()
+    await callback.message.answer(
+        "🎉 <b>Akkountingiz muvaffaqiyatli ulandi!</b>\n\n"
+        "Endi triggerlarni yaratishingiz va boshqarishingiz mumkin 👇",
+        parse_mode="HTML",
+        reply_markup=main_menu,
+    )
+    await callback.answer()
 
 # ============================
 #        YO'RIQNOMA
