@@ -248,7 +248,7 @@ def complete_registration(
     # Make user re-claimable by workers; heartbeat will set active
     user.worker_id = None
     user.worker_active = False
-    user.last_seen_at = datetime.utcnow()
+    user.last_seen_at = None
 
     db.commit()
     db.refresh(user)

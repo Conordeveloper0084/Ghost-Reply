@@ -4,7 +4,7 @@ import logging
 import signal
 
 import httpx
-from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
+from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError, UnauthorizedError
 
 from worker.session_loader import claim_users_for_worker
 from worker.client_manager import get_or_create_client
@@ -80,8 +80,8 @@ async def start_client(user: dict):
 
     logger.info(f"🚀 Starting client for {telegram_id}")
 
-    heartbeat_task = asyncio.create_task(heartbeat_loop(telegram_id))
     monitor_task = None
+    heartbeat_task = None
 
     try:
         client = await get_or_create_client(telegram_id, session_string)
@@ -96,29 +96,32 @@ async def start_client(user: dict):
 
         logger.info(f"🟢 Telegram session alive for {telegram_id}")
 
+        # 🔥 Start heartbeat ONLY after successful auth
+        heartbeat_task = asyncio.create_task(heartbeat_loop(telegram_id))
+
         monitor_task = asyncio.create_task(
             session_monitor(client, telegram_id)
         )
 
         await client.run_until_disconnected()
 
-    except (AuthKeyUnregisteredError, SessionRevokedError):
+    except (AuthKeyUnregisteredError, SessionRevokedError, UnauthorizedError):
         logger.warning(f"🔌 Session revoked for {telegram_id}")
         async with httpx.AsyncClient(timeout=5) as http:
-            await http.post(
-                f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}"
-            )
+            await http.post(f"{BACKEND_URL}/api/users/session-revoked/{telegram_id}")
+            await http.post(f"{BACKEND_URL}/api/users/worker-disconnected/{telegram_id}")
 
     except Exception as e:
         logger.exception(f"❌ Telegram client crashed for {telegram_id}: {e}")
 
     finally:
-        heartbeat_task.cancel()
+        if heartbeat_task:
+            heartbeat_task.cancel()
         if monitor_task:
             monitor_task.cancel()
 
         await asyncio.gather(
-            heartbeat_task,
+            *( [heartbeat_task] if heartbeat_task else [] ),
             *( [monitor_task] if monitor_task else [] ),
             return_exceptions=True,
         )
