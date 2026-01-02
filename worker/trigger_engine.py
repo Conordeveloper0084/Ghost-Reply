@@ -18,8 +18,12 @@ async def handle_incoming_message(
     event: events.NewMessage.Event,
     telegram_id: int,
 ):
-    # Ignore outgoing (self messages)
-    if event.out:
+    # ❌ Ignore group, supergroup, and channel messages (private chats only for now)
+    if event.is_group or event.is_channel:
+        return
+
+    # ❌ Ignore messages sent by the account itself (double safety)
+    if event.out or (event.sender_id == telegram_id):
         return
 
     if not event.message or not event.message.text:

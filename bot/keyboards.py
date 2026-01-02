@@ -19,14 +19,14 @@ main_menu = ReplyKeyboardMarkup(
     one_time_keyboard=True
 )
 
-# 🚫 Trigger limiti tugagan holat (INLINE)
+# 🚫 Trigger limiti tugagan holat (INLINE) - placeholder version
 def trigger_limit_reached_kb():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📦 Tariflarni ko‘rish",
-                    callback_data="open_plans"
+                    text="🔒 Tariflar hozircha mavjud emas",
+                    callback_data="noop"
                 )
             ],
             [
@@ -130,39 +130,23 @@ def link_account_kb(login_url: str) -> InlineKeyboardMarkup:
         ]
     )
 
-# ⚡ Tarif o‘zgartirish
-def plan_keyboard(current_plan: str):
-    buttons = []
+# ⚡ Tarif o‘zgartirish - removed
 
-    if current_plan != "pro":
-        buttons.append([InlineKeyboardButton(text="⭐ PRO - 21.990 UZS", callback_data="upgrade:pro")])
-    if current_plan != "premium":
-        buttons.append([InlineKeyboardButton(text="💎 PREMIUM - 36.000 UZS", callback_data="upgrade:premium")])
-
-    buttons.append([InlineKeyboardButton(text="⬅️ Ortga", callback_data="settings_back")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-# 📦 Tariflar menyusi
+# 📦 Tariflar menyusi - placeholder version
 def plans_menu_kb(current_plan: str):
-    buttons = []
-
-    if current_plan == "free":
-        buttons.append([InlineKeyboardButton(text="⭐ PRO — 10 trigger", callback_data="upgrade:pro")])
-        buttons.append([InlineKeyboardButton(text="💎 PREMIUM — 20 trigger", callback_data="upgrade:premium")])
-    elif current_plan == "pro":
-        buttons.append([InlineKeyboardButton(text="💎 PREMIUM — 20 trigger", callback_data="upgrade:premium")])
-    else:
-        buttons.append([InlineKeyboardButton(text="🚀 Siz PREMIUM'dasiz!", callback_data="noop")])
-
-    buttons.append([InlineKeyboardButton(text="⬅️ Ortga", callback_data="plans_back")])
+    buttons = [
+        [InlineKeyboardButton(text="🔒 Tariflar hozircha mavjud emas", callback_data="noop")],
+        [InlineKeyboardButton(text="⬅️ Ortga", callback_data="plans_back")]
+    ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# pay_kb - placeholder version
 def pay_kb(payment_id: int):
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(
-                text="💳 Click/PAYME orqali to‘lash",
-                callback_data=f"pay:{payment_id}"
+                text="🔒 To‘lovlar hozircha mavjud emas",
+                callback_data="noop"
             )],
             [InlineKeyboardButton(text="⬅️ Ortga", callback_data="plans_back")]
         ]

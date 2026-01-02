@@ -562,8 +562,9 @@ async def add_trigger_reply(message: Message, state: FSMContext):
     if res.status_code == 403:
         await message.answer(
             "🚫 <b>Trigger limitingiz tugadi</b>\n\n"
-            "Siz bepul tarifda maksimal 3 ta triggerlar soniga yetdingiz.\n"
-            "Ko‘proq trigger qo‘shish uchun iltimos tarifingizni yangilang 👇",
+            "Hozirgi test rejimida har bir foydalanuvchi maksimal <b>3 ta trigger</b> qo‘sha oladi.\n\n"
+            "📦 Tariflar va ko‘proq triggerlar <b>yaqin orada</b> qo‘shiladi.\n"
+            "Iltimos, yangilanishlarni kuting 👀",
             parse_mode="HTML",
             reply_markup=trigger_limit_reached_kb(),
         )
@@ -752,16 +753,16 @@ async def edit_trigger_start(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "open_plans")
 async def open_plans(callback: CallbackQuery):
-    async with httpx.AsyncClient() as client:
-        res = await client.get(f"{BACKEND_URL}/api/users/{callback.from_user.id}")
-    if res.status_code != 200:
-        await callback.answer("❌ Tariflarni yuklab bo‘lmadi", show_alert=True)
-        return
-    user = res.json()
     await callback.message.edit_text(
-        "📦 <b>Mavjud tariflar:</b>\n\nQuyidagi tariflardan birini tanlang:",
+        "📦 <b>Tariflar</b>\n\n"
+        "Hozircha GhostReply <b>test rejimida</b> ishlamoqda.\n\n"
+        "🔒 Tariflar, to‘lovlar va qo‘shimcha imkoniyatlar "
+        "yaqin orada qo‘shiladi.\n\n"
+        "Hozirgi holatda:\n"
+        "• Har bir foydalanuvchi maksimal <b>3 ta trigger</b> qo‘sha oladi\n\n"
+        "Rahmat! 🚀",
         parse_mode="HTML",
-        reply_markup=plans_menu_kb(user.get("plan", "free")),
+        reply_markup=plans_menu_kb("free"),
     )
     await callback.answer()
 
