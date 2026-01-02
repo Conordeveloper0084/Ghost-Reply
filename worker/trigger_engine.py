@@ -55,8 +55,10 @@ async def handle_incoming_message(
         if not trigger_text or not reply_text:
             continue
 
-        pattern = rf"\b{re.escape(trigger_text)}\b"
-        if not re.search(pattern, text):
+        trigger_norm = normalize_text(trigger_text)
+
+        # simple and reliable match for now (private chats only)
+        if trigger_norm not in text:
             continue
 
         try:
