@@ -246,25 +246,34 @@ def get_admin_users(
 ):
     require_admin(requester_telegram_id, db)
 
-    total = db.execute(
-        text("SELECT COUNT(*) FROM admin_users_v")
-    ).scalar()
+    query = db.query(User).order_by(User.created_at.desc())
 
-    result = db.execute(
-        text(
-            """
-            SELECT *
-            FROM admin_users_v
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-            """
-        ),
-        {"limit": limit, "offset": offset},
+    total = query.count()
+
+    users = (
+        query
+        .offset(offset)
+        .limit(limit)
+        .all()
     )
 
-    rows = result.mappings().all()
+    items = []
+    for u in users:
+        items.append({
+            "telegram_id": u.telegram_id,
+            "name": u.name or "not provided",
+            "username": f"@{u.username}" if u.username else "not provided",
+            "phone": u.phone or "not provided",
+            "plan": u.plan.value,
+            "plan_expires_at": u.plan_expires_at,
+            "created_at": u.created_at,
+            "worker_active": bool(u.worker_active),
+            "last_seen_at": u.last_seen_at,
+            "trigger_count": u.trigger_count,
+            "is_registered": bool(u.is_registered),
+        })
 
     return {
         "total": total,
-        "items": rows,
+        "items": items,
     }
