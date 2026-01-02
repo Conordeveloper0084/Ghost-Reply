@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
 from backend.models.admin import Admin
-from sqlalchemy import text
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -239,14 +238,30 @@ def check_admin(
 @router.get("/users")
 def get_admin_users(
     requester_telegram_id: int,
+    limit: int = 10,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
     require_admin(requester_telegram_id, db)
 
-    result = db.execute(text("SELECT * FROM admin_users_v"))
+    total = db.execute(
+        text("SELECT COUNT(*) FROM admin_users_v")
+    ).scalar()
+
+    result = db.execute(
+        text(
+            """
+            SELECT * FROM admin_users_v
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+            """
+        ),
+        {"limit": limit, "offset": offset},
+    )
+
     rows = result.mappings().all()
 
     return {
-        "total": len(rows),
+        "total": total,
         "items": rows,
     }

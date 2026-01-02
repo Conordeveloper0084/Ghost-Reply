@@ -175,6 +175,15 @@ async def admin_users_list_message(message: Message):
 
     await message.answer(text, parse_mode=None)
 
+@router.callback_query(F.data == "admin_users")
+async def admin_users_callback(callback: CallbackQuery):
+    await callback.message.answer(
+        "👥 <b>Userlar bo‘limi</b>",
+        parse_mode="HTML",
+        reply_markup=admin_users_kb
+    )
+    await callback.answer()
+
 
 @router.message(F.text == "🎁 User + Gift")
 async def start_user_gift(message: Message, state: FSMContext):

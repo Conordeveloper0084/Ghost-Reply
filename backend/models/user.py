@@ -65,12 +65,6 @@ class User(Base):
 
     trigger_count = Column(Integer, default=0, nullable=False)
 
-    triggers = relationship(
-        "Trigger",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-
     payments = relationship(
         "Payment",
         back_populates="user",
