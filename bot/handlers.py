@@ -779,6 +779,21 @@ async def plans_back(callback: CallbackQuery):
     await callback.answer()
 
 
+@router.message(F.text == "📦 Tariflar")
+async def open_plans_message(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(
+        "📦 <b>Tariflar</b>\n\n"
+        "Hozircha GhostReply <b>test rejimida</b> ishlamoqda.\n\n"
+        "🔒 Tariflar, to‘lovlar va qo‘shimcha imkoniyatlar "
+        "yaqin orada qo‘shiladi.\n\n"
+        "Hozirgi holatda:\n"
+        "• Har bir foydalanuvchi maksimal <b>3 ta trigger</b> qo‘sha oladi\n\n"
+        "Rahmat! 🚀",
+        parse_mode="HTML",
+        reply_markup=plans_menu_kb("free"),
+    )
+
 # ============================
 #     EDIT TRIGGER HANDLERS (FSM)
 # ============================
