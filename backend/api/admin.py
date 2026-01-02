@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
 from typing import List
-
+from sqlalchemy import text
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+import httpx
+from backend.core.config import settings
 from backend.core.db import get_db
 from backend.models.user import User, PlanEnum
 from backend.models.admin import Admin
@@ -251,7 +253,8 @@ def get_admin_users(
     result = db.execute(
         text(
             """
-            SELECT * FROM admin_users_v
+            SELECT *
+            FROM admin_users_v
             ORDER BY created_at DESC
             LIMIT :limit OFFSET :offset
             """
