@@ -21,6 +21,10 @@ def _prep_text(s: str) -> str:
     s = re.sub(r"\s+", " ", s)
     return s
 
+def _tokenize(s: str) -> list[str]:
+    # split text into words, ignoring punctuation
+    return re.findall(r"[a-zA-Z0-9_]+", s.lower())
+
 
 async def handle_incoming_message(
     client,
@@ -65,14 +69,20 @@ async def handle_incoming_message(
         if not trigger_text or not reply_text:
             continue
 
-        # normalize trigger once
         trigger_norm = _prep_text(trigger_text)
+        trigger_tokens = _tokenize(trigger_norm)
+        message_tokens = _tokenize(text)
 
-        # word-boundary safe regex (latin + cyrillic safe)
-        pattern = rf"(?<!\w){re.escape(trigger_norm)}(?!\w)"
+        # single-word trigger: must match exactly one token
+        if len(trigger_tokens) == 1:
+            if trigger_tokens[0] not in message_tokens:
+                continue
 
-        if not re.search(pattern, text):
-            continue
+        # multi-word trigger: must appear as contiguous phrase
+        else:
+            joined = " ".join(message_tokens)
+            if trigger_norm not in joined:
+                continue
 
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
