@@ -8,22 +8,9 @@ from telethon import events
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 
 from worker.config import BACKEND_URL
-
-
+from worker.utils import normalize_text
 
 logger = logging.getLogger(__name__)
-
-# NOTE: We must NOT remove spaces for trigger matching.
-# Using normalize_text() here can break word-boundary regex (e.g. "hi bro" -> "hibro").
-def _prep_text(s: str) -> str:
-    # lower + trim + collapse multiple spaces, but keep word boundaries
-    s = s.lower().strip()
-    s = re.sub(r"\s+", " ", s)
-    return s
-
-def _tokenize(s: str) -> list[str]:
-    # split text into words, ignoring punctuation
-    return re.findall(r"[a-zA-Z0-9_]+", s.lower())
 
 
 async def handle_incoming_message(
@@ -31,19 +18,14 @@ async def handle_incoming_message(
     event: events.NewMessage.Event,
     telegram_id: int,
 ):
-    # ❌ Ignore group, supergroup, and channel messages (private chats only for now)
-    if event.is_group or event.is_channel:
-        return
-
-    # ❌ Ignore messages sent by the account itself (double safety)
-    if event.out or (event.sender_id == telegram_id):
+    # Ignore outgoing (self messages)
+    if event.out:
         return
 
     if not event.message or not event.message.text:
         return
 
-    raw_text = event.message.text
-    text = _prep_text(raw_text)
+    text = normalize_text(event.message.text)
     logger.debug(f"📩 Incoming message for {telegram_id}: {text}")
 
     # 🔁 triggerlarni backenddan olish
@@ -69,20 +51,9 @@ async def handle_incoming_message(
         if not trigger_text or not reply_text:
             continue
 
-        trigger_norm = _prep_text(trigger_text)
-        trigger_tokens = _tokenize(trigger_norm)
-        message_tokens = _tokenize(text)
-
-        # single-word trigger: must match exactly one token
-        if len(trigger_tokens) == 1:
-            if trigger_tokens[0] not in message_tokens:
-                continue
-
-        # multi-word trigger: must appear as contiguous phrase
-        else:
-            joined = " ".join(message_tokens)
-            if trigger_norm not in joined:
-                continue
+        pattern = rf"\b{re.escape(trigger_text)}\b"
+        if not re.search(pattern, text):
+            continue
 
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
