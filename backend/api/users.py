@@ -346,6 +346,28 @@ def session_revoked(telegram_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "revoked"}
 
+@router.post("/reset-stale-workers")
+def reset_stale_workers(db: Session = Depends(get_db)):
+    now = datetime.utcnow()
+    STALE_AFTER = timedelta(seconds=60)
+
+    users = (
+        db.query(User)
+        .filter(
+            User.worker_active.is_(True),
+            User.last_seen_at.isnot(None),
+            User.last_seen_at < now - STALE_AFTER,
+        )
+        .all()
+    )
+
+    for u in users:
+        u.worker_active = False
+        u.worker_id = None
+
+    db.commit()
+    return {"reset": len(users)}
+
 
 @router.get("/{telegram_id}/connection-status")
 def connection_status(telegram_id: int, db: Session = Depends(get_db)):

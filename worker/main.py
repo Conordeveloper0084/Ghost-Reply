@@ -31,6 +31,15 @@ ACTIVE_TASKS: dict[int, asyncio.Task] = {}
 SHUTDOWN_EVENT = asyncio.Event()
 
 
+async def reset_stale_workers_on_startup():
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            await client.post(f"{BACKEND_URL}/api/users/reset-stale-workers")
+            logger.info("♻️ Stale workers reset on startup")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to reset stale workers on startup: {e}")
+
+
 async def heartbeat_loop(telegram_id: int):
     async with httpx.AsyncClient(timeout=5) as client:
         while not SHUTDOWN_EVENT.is_set():
@@ -145,6 +154,7 @@ async def graceful_shutdown():
 
 async def worker_loop():
     logger.info(f"🧠 Worker {WORKER_ID} started")
+    await reset_stale_workers_on_startup()
 
     while not SHUTDOWN_EVENT.is_set():
         try:
