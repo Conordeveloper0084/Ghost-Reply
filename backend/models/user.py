@@ -32,38 +32,48 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
-    telegram_session = relationship("TelegramSession", back_populates="user", uselist=False)
-
 
     telegram_id = Column(BigInteger, unique=True, index=True, nullable=False)
 
     name = Column(String)
-
-    is_admin = Column(Boolean, default=False, nullable=False)
-    
     username = Column(String, nullable=True)
     phone = Column(String, nullable=True)
 
-
     language = Column(String, default="uz", nullable=False)
+
+    is_admin = Column(Boolean, default=False, nullable=False)
 
     registered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    worker_id = Column(String, nullable=True, index=True)
 
+    # worker state
+    worker_id = Column(String, nullable=True, index=True)
     worker_active = Column(Boolean, default=False)
     last_seen_at = Column(DateTime, nullable=True)
 
+    # plan
     plan = Column(
         SAEnum(PlanEnum, name="plan_enum"),
         default=PlanEnum.free,
-        nullable=False
+        nullable=False,
     )
     plan_expires_at = Column(DateTime, nullable=True)
 
+    # registration
     is_registered = Column(Boolean, default=False)
 
+    # triggers
     trigger_count = Column(Integer, default=0, nullable=False)
+
+    # =========================
+    # RELATIONSHIPS
+    # =========================
+
+    triggers = relationship(
+        "Trigger",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     payments = relationship(
         "Payment",
@@ -77,6 +87,10 @@ class User(Base):
         uselist=False,
         cascade="all, delete-orphan",
     )
+
+    # =========================
+    # DERIVED LOGIC
+    # =========================
 
     @hybrid_property
     def is_plan_active(self) -> bool:
