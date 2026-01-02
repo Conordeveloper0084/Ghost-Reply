@@ -21,6 +21,10 @@ def _prep_text(s: str) -> str:
     s = re.sub(r"\s+", " ", s)
     return s
 
+def _tokenize(s: str) -> list[str]:
+    # split text into words, ignoring punctuation
+    return re.findall(r"[a-zA-Z0-9_]+", s.lower())
+
 
 async def handle_incoming_message(
     client,
@@ -65,13 +69,15 @@ async def handle_incoming_message(
         if not trigger_text or not reply_text:
             continue
 
-        # normalize trigger once
         trigger_norm = _prep_text(trigger_text)
+        trigger_tokens = _tokenize(trigger_norm)
+        message_tokens = _tokenize(text)
 
-        # word-boundary safe regex (latin + cyrillic safe)
-        pattern = rf"(?<!\w){re.escape(trigger_norm)}(?!\w)"
+        # 🔒 Trigger must be at the START of the message
+        if len(message_tokens) < len(trigger_tokens):
+            continue
 
-        if not re.search(pattern, text):
+        if message_tokens[:len(trigger_tokens)] != trigger_tokens:
             continue
 
         try:
