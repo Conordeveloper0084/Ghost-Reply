@@ -521,7 +521,7 @@ async def add_trigger_start(message: Message, state: FSMContext):
     # ✅ Limit bor — FSM davom etadi
     await state.set_state(AddTriggerState.waiting_for_trigger)
     await message.answer(
-        "✍️ Trigger matnini kiriting, bu bot qanday xabar kelganda ishga tushishi uchun: (masalan: <code>Trigger_so'z 1</code>)",
+        "✍️ Trigger matnini kiriting, bu bot qanday xabar kelganda ishga tushishi uchun: (masalan: <code>So'z 1</code>)",
         parse_mode="HTML",
     )
 
