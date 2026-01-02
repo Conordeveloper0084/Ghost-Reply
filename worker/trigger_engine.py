@@ -8,24 +8,35 @@ from telethon import events
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 
 from worker.config import BACKEND_URL
-from worker.utils import normalize_text
 
 logger = logging.getLogger(__name__)
 
+# NOTE: We must NOT remove spaces for trigger matching.
+# Using normalize_text() here can break word-boundary regex (e.g. "hi bro" -> "hibro").
+def _prep_text(s: str) -> str:
+    # lower + trim + collapse multiple spaces, but keep word boundaries
+    s = s.lower().strip()
+    s = re.sub(r"\s+", " ", s)
+    return s
 
 async def handle_incoming_message(
     client,
     event: events.NewMessage.Event,
     telegram_id: int,
 ):
-    # Ignore outgoing (self messages)
-    if event.out:
+    # ❌ Ignore group, supergroup, and channel messages (private chats only for now)
+    if event.is_group or event.is_channel:
+        return
+
+    # ❌ Ignore messages sent by the account itself (double safety)
+    if event.out or (event.sender_id == telegram_id):
         return
 
     if not event.message or not event.message.text:
         return
 
-    text = normalize_text(event.message.text)
+    raw_text = event.message.text
+    text = _prep_text(raw_text)
     logger.debug(f"📩 Incoming message for {telegram_id}: {text}")
 
     # 🔁 triggerlarni backenddan olish
@@ -51,7 +62,12 @@ async def handle_incoming_message(
         if not trigger_text or not reply_text:
             continue
 
-        pattern = rf"\b{re.escape(trigger_text)}\b"
+        # normalize trigger once
+        trigger_norm = _prep_text(trigger_text)
+
+        # word-boundary safe regex (latin + cyrillic safe)
+        pattern = rf"(?<!\w){re.escape(trigger_norm)}(?!\w)"
+
         if not re.search(pattern, text):
             continue
 
