@@ -9,6 +9,8 @@ from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 
 from worker.config import BACKEND_URL
 
+
+
 logger = logging.getLogger(__name__)
 
 # NOTE: We must NOT remove spaces for trigger matching.
@@ -18,6 +20,7 @@ def _prep_text(s: str) -> str:
     s = s.lower().strip()
     s = re.sub(r"\s+", " ", s)
     return s
+
 
 async def handle_incoming_message(
     client,
