@@ -512,7 +512,7 @@ async def add_trigger_start(message: Message, state: FSMContext):
         await message.answer(
             "🚫 <b>Trigger limitingiz tugadi</b>\n\n"
             "Ghost Reply hozircha test holatda, barcha foydalanuvchilar faqatgina 3 tagacha trigger qo'sha olishadi😕\n"
-            "Tariflar qo'shimcha funcsiyalar tez orada qo'shiladi, iltimos yangilanishni kuting!🙂",
+            "Tariflar qo'shimcha funksiyalar tez orada qo'shiladi, iltimos yangilanishni kuting!🙂",
             parse_mode="HTML",
             reply_markup=trigger_limit_reached_kb(),
         )
