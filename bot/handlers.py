@@ -40,7 +40,7 @@ async def ensure_account_connected(telegram_id: int, message_or_callback):
     if res.status_code == 403:
         await message_or_callback.answer(
             "🔌 <b>Akkountingiz uzilgan</b>\n\n"
-            "Telegram qurilmalar bo‘limidan GhostReply sessiyasi o‘chirilgan.\n"
+            "Telegram qurilmalar bo‘limidan GhostReply qurulmasi o‘chirilgan.\n"
             "Iltimos, akkountingizni qayta ulang.",
             parse_mode="HTML",
         )
@@ -119,7 +119,7 @@ async def start_cmd(message: Message, state: FSMContext):
 
         await message.answer(
             "📱 <b>Davom etish uchun telefon raqamingizni yuboring</b>\n\n"
-            "Bu To'lovlar va Xavfsizlik uchun zarur.",
+            "Bu Xavfsizlik uchun zarur.",
             parse_mode="HTML",
             reply_markup=contact_kb,
         )
@@ -228,8 +228,8 @@ async def start_link_account(callback: CallbackQuery):
         "🔌 <b>Akkountni uzish</b>\n"
         "Siz istalgan vaqtda Telegram → Qurilmalar bo‘limidan Ghost Reply sessiyasini o‘chirib, akkountni uzishingiz mumkin.\n\n"
         "📱 <b>Qurilma xavfsizligi (Muhim)</b>\n"
-        "Bot quyidagi nom bilan ulanadi:\n"
-        "<code>arm64, Ghost Reply 1.42.0, Android 24.9.0, khiva, Uzbekistan</code>\n"
+        "Bot quyidagi nomga o'xshash tarzda ulanadi:\n"
+        "<code>PC 64bit, Ghost Reply 1.42.0, Android [ID-raqami], [Shahar], [Davlat]</code>\n"
         "Telegram sozlamalarida boshqa noma’lum qurilma yo‘qligini tekshiring, boshqa nomalum qurulmalar uchun bot javobgar emas!.\n\n"
         "🔑 <b>Parollar haqida</b>\n"
         "Telegram login kodlari va ikki bosqichli parollar hech qachon saqlanmaydi. "
@@ -268,7 +268,7 @@ async def confirm_link_account(callback: CallbackQuery):
 
     text = (
         "🔐 <b>Akkount ulashga tayyormiz</b>\n\n"
-        "Quyidagi havola orqali brauzerda Telegram akkauntingizni ulang 👇\n\n"
+        "Quyidagi havola orqali brauzerda ro'yxatdan o'ting va Telegram akkauntingizni ulang 👇\n\n"
         f"🌐 <a href=\"{login_url}\">{login_url}</a>\n\n"
         "Ulash tugagach, pastdagi tugma orqali holatni tekshiring."
     )
@@ -392,7 +392,7 @@ async def show_guide(message: Message, state: FSMContext):
         "🔹 <b>2-qadam: Triggerlarni sozlash (Telegram bot orqali)</b>\n"
         "• Telegram’dagi Ghost Reply botiga qayting\n"
         "• <b>➕ Trigger qo‘shish</b> tugmasini bosing\n"
-        "• Trigger so‘zni kiriting (masalan: <code>salom</code>)\n"
+        "• Trigger so‘zni kiriting (masalan: <code>Salom</code>)\n"
         "• Javob matnini kiriting (masalan: <code>Va alaykum assalom!</code>)\n\n"
         "🔹 <b>3-qadam: Botni ishga tushirish</b>\n"
         "• Akkount ulanganidan so‘ng bot avtomatik tarzda faollashadi\n"
@@ -439,7 +439,7 @@ async def show_security(message: Message, state: FSMContext):
         "Siz istalgan vaqtda Telegram → Qurilmalar bo‘limidan Ghost Reply sessiyasini o‘chirib, akkountni uzishingiz mumkin.\n\n"
         "📱 <b>Qurilma xavfsizligi (Muhim)</b>\n"
         "Bot faqat quyidagi nom bilan ulanadi:\n"
-        "<code>arm64, Ghost Reply 1.42.0, Android 24.9.0, khiva, Uzbekistan</code>\n"
+        "<code>PC 64bit, Ghost Reply 1.42.0, Android [ID-raqam], [Shahar], [Davlat]</code>\n"
         "Agar Telegram sozlamalarida boshqa noma'lum qurilmalar bo‘lsa — darhol sessiyani o‘chiring.\n\n"
         "🔑 <b>Parollar haqida</b>\n"
         "Telegram login kodlari va 2-bosqichli parollar hech qachon saqlanmaydi.\n"
@@ -468,7 +468,7 @@ async def log_out(message: Message, state: FSMContext):
         "2️⃣ <b>Xavfsizlik sozlamalari bo'limidan Qurulmalar bo'limini toping!</b>\n"
         "3️⃣ <b>Botni qurulmalar ro'yxatidan chiqarib yuboring!</b>\n"
         "👻 <b>Bot/Qurulma nomi👇:</b>\n\n"
-        "<code>🤖arm64, Ghost Reply 1.42.0, Android 24.9.0, khiva, Uzbekistan</code>\n\n"
+        "<code>🤖PC 64bit, Ghost Reply 1.42.0, Android [ID-raqam], [Shahar], [Davlat nomi]</code>\n\n"
         "‼️Ushbu qurulmani chiqarish orqali o'z akkountingizni Ghost Replydan uzgan bo'lasiz, va bot boshqa sizning o'rningizga javob bermaydi!\n\n"
         "🔗 <b>Botni qayta ulash uchun botga qayta start bering va akkountingizni qayta ulang!</b>\n"
     )

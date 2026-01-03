@@ -865,15 +865,30 @@ async def login_start_form():
             <form method="post" action="/web-login/start" id="phoneForm">
                 <div class="form-group">
                     <label for="phone">Telefon raqamingiz</label>
-                    <input 
-                        type="tel" 
-                        id="phone" 
-                        name="phone" 
-                        placeholder="+998 90 123 45 67" 
-                        required
-                        pattern="\\+[0-9]{10,15}"
-                        autocomplete="tel"
-                    />
+                    <div style="display:flex; gap:8px;">
+                        <input
+                            type="text"
+                            value="+998"
+                            disabled
+                            style="
+                                width: 90px;
+                                text-align: center;
+                                font-weight: 600;
+                                background: #f1f5f9;
+                                border: 2px solid #e2e8f0;
+                                border-radius: 14px;
+                            "
+                        />
+                        <input 
+                            type="tel"
+                            id="phone"
+                            name="phone"
+                            placeholder="90 123 45 67"
+                            required
+                            pattern="[0-9 ]{9,12}"
+                            autocomplete="tel"
+                        />
+                    </div>
                 </div>
                 <button type="submit" class="btn" id="submitBtn">
                     Kodni yuborish
@@ -888,6 +903,14 @@ async def login_start_form():
                 btn.innerHTML = 'Yuborilmoqda<span class="loading"></span>';
             });
         </script>
+        <script>
+            const phoneInput = document.getElementById("phone");
+
+            phoneInput.addEventListener("input", () => {
+                // allow only digits and spaces
+                phoneInput.value = phoneInput.value.replace(/[^0-9 ]/g, "");
+            });
+        </script>
     """
     return render_html(body, "Login", show_popup=True)
 
@@ -897,6 +920,7 @@ async def login_start(phone: str = Form(...)):
     cleanup_login_ctx()
     phone = phone.strip()
     phone = phone.replace(" ", "").replace("-", "")
+    phone = "+998" + phone
 
     if not phone.startswith("+") or len(phone) < 10:
         body = """
