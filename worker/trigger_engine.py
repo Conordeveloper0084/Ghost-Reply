@@ -84,42 +84,21 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # 🧠 Human-like behavior:
-            # - total reply delay: 5–10s
-            # - typing indicator: 3–5s
-            reply_delay = random.uniform(5.0, 10.0)
-            typing_duration = random.uniform(3.0, 5.0)
+            # 🧠 Human-like delay to avoid spam / freeze (simulate continuous typing, 3–5 seconds)
+            total_delay = random.uniform(5.0, 10.0)
 
-            # 🔑 Resolve entity explicitly (CRITICAL to avoid entity errors)
-            try:
-                entity = await client.get_input_entity(event.sender_id)
-            except Exception as e:
-                logger.error(f"❌ Failed to resolve entity for {event.sender_id}: {e}")
-                return
+            await client.send_read_acknowledge(event.chat_id)
 
-            # Mark as read (optional)
-            try:
-                await client.send_read_acknowledge(entity)
-            except Exception:
-                pass
+            elapsed = 0.0
+            while elapsed < total_delay:
+                await client.send_typing(event.chat_id)
+                step = random.uniform(3.0, 5.0)  # typing indicator refresh window
+                await asyncio.sleep(step)
+                elapsed += step
 
-            # Show typing indicator
-            try:
-                async with client.action(entity, "typing"):
-                    await asyncio.sleep(typing_duration)
-            except Exception:
-                pass
-
-            # Remaining delay after typing
-            remaining = max(0.0, reply_delay - typing_duration)
-            if remaining:
-                await asyncio.sleep(remaining)
-
-            # Send reply safely
-            await client.send_message(entity, reply_text)
-
+            await event.reply(reply_text)
             logger.info(
-                f"✅ Reply sent for {telegram_id} after {reply_delay:.2f}s (typing {typing_duration:.2f}s)"
+                f"✅ Reply sent for {telegram_id} after {total_delay:.2f}s human-like typing"
             )
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
