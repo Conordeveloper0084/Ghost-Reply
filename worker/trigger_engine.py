@@ -84,57 +84,14 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # ---- Timing configuration (SAFE & PREDICTABLE) ----
-            typing_duration = random.uniform(3.0, 5.0)   # show "typing…" for 3–5s
-            reply_delay = random.uniform(5.0, 10.0)      # total human delay before reply
+            # 🧠 Human-like delay to avoid spam / freeze (2–4 seconds)
+            delay = random.uniform(5, 10)
+            await client.send_read_acknowledge(event.chat_id)
+            await client.send_typing(event.chat_id)
+            await asyncio.sleep(delay)
 
-            # Mark message as read (safe)
-            try:
-                await client.send_read_acknowledge(event.chat_id)
-            except Exception:
-                pass
-
-            # Resolve chat entity (IMPORTANT: reply must go to the chat, not sender_id)
-            # Using sender_id can fail (entity not cached) and can even point to the wrong peer.
-            try:
-                chat_entity = await event.get_input_chat()
-            except Exception:
-                # Fallback: resolve by chat_id
-                try:
-                    chat_entity = await client.get_input_entity(event.chat_id)
-                except Exception as e:
-                    logger.error(
-                        f"❌ Failed to resolve chat entity for {telegram_id} chat_id={event.chat_id}: {repr(e)}"
-                    )
-                    return
-
-            # ---- Show typing indicator ----
-            try:
-                async with client.action(event.chat_id, "typing"):
-                    await asyncio.sleep(typing_duration)
-            except Exception:
-                # Typing failure must NOT block reply
-                pass
-
-            # ---- Remaining delay (if any) ----
-            remaining = max(0.0, reply_delay - typing_duration)
-            if remaining > 0:
-                await asyncio.sleep(remaining)
-
-            # ---- Send reply (STABLE METHOD) ----
-            try:
-                await client.send_message(chat_entity, reply_text)
-            except ValueError as e:
-                # Fallback: event.reply may work if Telethon can resolve internally
-                logger.warning(
-                    f"⚠️ send_message ValueError for {telegram_id} chat_id={event.chat_id}: {repr(e)}; falling back to event.reply"
-                )
-                await event.reply(reply_text)
-
-            logger.info(
-                f"✅ Reply sent for {telegram_id} "
-                f"(typing={typing_duration:.2f}s, total_delay={reply_delay:.2f}s)"
-            )
+            await event.reply(reply_text)
+            logger.info(f"✅ Reply sent for {telegram_id} after {delay:.2f}s delay")
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
         except (AuthKeyUnregisteredError, SessionRevokedError):
