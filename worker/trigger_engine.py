@@ -85,7 +85,7 @@ async def handle_incoming_message(
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
             # 🧠 Human-like delay to avoid spam / freeze (2–4 seconds)
-            delay = random.uniform(5, 10)
+            delay = random.uniform(2.5, 4.0)
             await client.send_read_acknowledge(event.chat_id)
             await client.send_typing(event.chat_id)
             await asyncio.sleep(delay)
