@@ -84,21 +84,34 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # 🧠 Human-like delay to avoid spam / freeze (simulate continuous typing, 3–5 seconds)
-            total_delay = random.uniform(3.0, 5.0)
+            # 🧠 Human-like behavior:
+            # - total reply delay: 5–10s (overall time before sending the reply)
+            # - typing indicator: 3–5s (shown BEFORE the reply)
+            reply_delay = random.uniform(5.0, 10.0)
+            typing_duration = random.uniform(3.0, 5.0)
 
-            await client.send_read_acknowledge(event.chat_id)
+            # Mark as read quickly (optional, but feels human)
+            try:
+                await client.send_read_acknowledge(event.chat_id)
+            except Exception:
+                pass
 
-            elapsed = 0.0
-            while elapsed < total_delay:
-                await client.send_typing(event.chat_id)
-                step = random.uniform(3.0, 5.0)  # typing indicator refresh window
-                await asyncio.sleep(step)
-                elapsed += step
+            # Show "typing..." for a while
+            try:
+                async with client.action(event.chat_id, "typing"):
+                    await asyncio.sleep(typing_duration)
+            except Exception:
+                # If typing action fails, still continue to reply
+                pass
+
+            # If total delay is longer than typing duration, wait the remaining time
+            remaining = max(0.0, reply_delay - typing_duration)
+            if remaining:
+                await asyncio.sleep(remaining)
 
             await event.reply(reply_text)
             logger.info(
-                f"✅ Reply sent for {telegram_id} after {total_delay:.2f}s human-like typing"
+                f"✅ Reply sent for {telegram_id} after {reply_delay:.2f}s (typing {typing_duration:.2f}s)"
             )
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
