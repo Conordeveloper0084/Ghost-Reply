@@ -1,6 +1,7 @@
 # backend/web_login.py
 import time
 import uuid
+import re
 from typing import Dict
 
 from datetime import datetime
@@ -919,10 +920,10 @@ async def login_start_form():
 async def login_start(phone: str = Form(...)):
     cleanup_login_ctx()
     phone = phone.strip()
-    phone = phone.replace(" ", "").replace("-", "")
+    phone = re.sub(r"\D", "", phone)  # faqat raqamlar
     phone = "+998" + phone
 
-    if not phone.startswith("+998") or len(phone) != 13:
+    if not re.fullmatch(r"\+998\d{9}", phone):
         body = """
             <div class="card">
                 <div class="alert alert-error">
