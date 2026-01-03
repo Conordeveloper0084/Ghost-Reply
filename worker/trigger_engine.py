@@ -84,14 +84,22 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # 🧠 Human-like delay to avoid spam / freeze (2–4 seconds)
-            delay = random.uniform(5, 10)
+            # 🧠 Human-like delay to avoid spam / freeze (simulate continuous typing, 3–5 seconds)
+            total_delay = random.uniform(3.0, 5.0)
+
             await client.send_read_acknowledge(event.chat_id)
-            await client.send_typing(event.chat_id)
-            await asyncio.sleep(delay)
+
+            elapsed = 0.0
+            while elapsed < total_delay:
+                await client.send_typing(event.chat_id)
+                step = random.uniform(3.0, 5.0)  # typing indicator refresh window
+                await asyncio.sleep(step)
+                elapsed += step
 
             await event.reply(reply_text)
-            logger.info(f"✅ Reply sent for {telegram_id} after {delay:.2f}s delay")
+            logger.info(
+                f"✅ Reply sent for {telegram_id} after {total_delay:.2f}s human-like typing"
+            )
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
         except (AuthKeyUnregisteredError, SessionRevokedError):
