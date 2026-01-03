@@ -84,21 +84,44 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # 🧠 Human-like delay to avoid spam / freeze (simulate continuous typing, 3–5 seconds)
-            total_delay = random.uniform(5.0, 10.0)
+            # ---- Timing configuration (SAFE & PREDICTABLE) ----
+            typing_duration = random.uniform(3.0, 5.0)   # show "typing…" for 3–5s
+            reply_delay = random.uniform(5.0, 10.0)      # total human delay before reply
 
-            await client.send_read_acknowledge(event.chat_id)
+            # Mark message as read (safe)
+            try:
+                await client.send_read_acknowledge(event.chat_id)
+            except Exception:
+                pass
 
-            elapsed = 0.0
-            while elapsed < total_delay:
-                await client.send_typing(event.chat_id)
-                step = random.uniform(3.0, 5.0)  # typing indicator refresh window
-                await asyncio.sleep(step)
-                elapsed += step
+            # Resolve entity explicitly (CRITICAL FIX)
+            try:
+                entity = await client.get_input_entity(event.sender_id)
+            except Exception as e:
+                logger.error(
+                    f"❌ Failed to resolve entity for {telegram_id}: {repr(e)}"
+                )
+                return
 
-            await event.reply(reply_text)
+            # ---- Show typing indicator ----
+            try:
+                async with client.action(event.chat_id, "typing"):
+                    await asyncio.sleep(typing_duration)
+            except Exception:
+                # Typing failure must NOT block reply
+                pass
+
+            # ---- Remaining delay (if any) ----
+            remaining = max(0.0, reply_delay - typing_duration)
+            if remaining > 0:
+                await asyncio.sleep(remaining)
+
+            # ---- Send reply (STABLE METHOD) ----
+            await client.send_message(entity, reply_text)
+
             logger.info(
-                f"✅ Reply sent for {telegram_id} after {total_delay:.2f}s human-like typing"
+                f"✅ Reply sent for {telegram_id} "
+                f"(typing={typing_duration:.2f}s, total_delay={reply_delay:.2f}s)"
             )
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
