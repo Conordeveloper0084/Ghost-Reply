@@ -399,6 +399,7 @@ async def show_guide(message: Message, state: FSMContext):
         "• Endi Ghost Reply kelayotgan xabarlarni kuzatib boradi\n"
         "• Kimdir trigger so‘zni yozsa — bot avtomatik javob qaytaradi\n\n"
         "⚠️ <b>Muhim eslatma</b>\n"
+        "<b>Triggerlarga - Telegram maxfiylik siyosatiga zid keluvchi - Siyosiy ma'lumotlar, zo'ravonlikni targ'ib qiliuvchi matnlar, 18+ matnlar, umumiy odob - axloqni buzadigan matnlarni kiritmaslik tavsiya qilinadi, telegram maxfiyligiga zid harakatlar akkount spam bo'lishi, muzlatilinishi, yoki ban bo'lishi mumkin!</b>\n\n"
         "Trigger so‘zlar katta-kichik harflarni farqlamaydi.\n"
         "<code>Salom</code>, <code>salom</code> va <code>SALOM</code> — barchasi bir xil trigger hisoblanadi."
     )
