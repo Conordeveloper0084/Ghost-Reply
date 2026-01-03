@@ -268,8 +268,8 @@ async def confirm_link_account(callback: CallbackQuery):
 
     text = (
         "🔐 <b>Akkount ulashga tayyormiz</b>\n\n"
-        "Quyidagi havola orqali brauzerda ro'yxatdan o'ting va Telegram akkauntingizni ulang 👇\n\n"
-        f"🌐 <a href=\"{login_url}\">{login_url}</a>\n\n"
+        "Quyidagi tugma orqali brauzerda ro'yxatdan o'ting va Telegram akkauntingizni ulang 👇\n\n"
+        f"🌐 <a href=\"{login_url}\">🔗 Ulanish uchun havola</a>\n\n"
         "Ulash tugagach, pastdagi tugma orqali holatni tekshiring."
     )
 
