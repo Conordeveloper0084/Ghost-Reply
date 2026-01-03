@@ -80,7 +80,7 @@ def render_html(body: str, page_title: str = "Login", show_popup: bool = False) 
                         <h4>Qurilma xavfsizligi:</h4>
                         <p style="margin-bottom: 0.5rem;">Bot faqat quyidagi nom bilan ulanadi:</p>
                         <div class="device-info">
-                            <strong>arm64, Ghost Reply 1.42.0, Android 24.9.0, khiva, Uzbekistan</strong>
+                            <strong>PC 64bit, Ghost Reply 1.42.0, Android [ID-raqam], [Shahar], [Davlat nomi] </strong>
                         </div>
                         <p class="warning-text">Boshqa noma'lum qurilmadan kirish bo'lmaydi. Telegram sozlamalaringizda boshqa noma'lum device yo'qligini tekshiring. Noma'lum qurilmalar uchun bot javobgar emas!</p>
                     </div>
@@ -1504,7 +1504,7 @@ async def security_page():
                     Bot faqat quyidagi nom bilan akkountingizga ulanadi:
                 </p>
                 <div style="background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%); padding: 0.75rem; border-radius: 8px; text-align: center; margin: 0.75rem 0;">
-                    <strong style="color: #1a3a5c;">arm64, Ghost Reply 1.42.0, Android 24.9.0, khiva, Uzbekistan</strong>
+                    <strong style="color: #1a3a5c;">PC 64bit, Ghost Reply 1.42.0, Android [ID-raqam], [Shahar], [Davlat nomi]</strong>
                 </div>
                 <p style="color: #c53030; line-height: 1.8; margin: 0.75rem 0 0 0; font-weight: 500;">
                     Telegram sozlamalaringizda boshqa noma'lum qurilma (device) yo'qligini tekshiring! 
