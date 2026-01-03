@@ -922,7 +922,7 @@ async def login_start(phone: str = Form(...)):
     phone = phone.replace(" ", "").replace("-", "")
     phone = "+998" + phone
 
-    if not phone.startswith("+") or len(phone) < 10:
+    if not phone.startswith("+998") or len(phone) != 13:
         body = """
             <div class="card">
                 <div class="alert alert-error">
