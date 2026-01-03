@@ -4,7 +4,6 @@ import httpx
 import re
 import asyncio
 import logging
-import random
 from telethon import events
 from telethon.errors import AuthKeyUnregisteredError, SessionRevokedError
 
@@ -83,15 +82,9 @@ async def handle_incoming_message(
 
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
-
-            # 🧠 Human-like delay to avoid spam / freeze (2–4 seconds)
-            delay = random.uniform(2.5, 4.0)
-            await client.send_read_acknowledge(event.chat_id)
-            await client.send_typing(event.chat_id)
-            await asyncio.sleep(delay)
-
+            await asyncio.sleep(1.5)
             await event.reply(reply_text)
-            logger.info(f"✅ Reply sent for {telegram_id} after {delay:.2f}s delay")
+            logger.info(f"✅ Reply sent for {telegram_id}")
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
         except (AuthKeyUnregisteredError, SessionRevokedError):
