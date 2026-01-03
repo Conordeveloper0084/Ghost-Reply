@@ -84,14 +84,27 @@ async def handle_incoming_message(
         try:
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
-            # ⏱ Human-like random delay (SAFE: does NOT touch entities or typing)
-            delay = random.uniform(5.0, 10.0)
-            await asyncio.sleep(delay)
+            # ⏱ Human-like delay with SAFE typing (no entity resolution)
+            total_delay = random.uniform(5.0, 10.0)
+            typing_duration = random.uniform(2.0, 4.0)
+
+            # Show typing for a short, safe window
+            try:
+                async with client.action(event.chat_id, "typing"):
+                    await asyncio.sleep(typing_duration)
+            except Exception:
+                pass
+
+            # Wait remaining delay (if any)
+            remaining = max(0.0, total_delay - typing_duration)
+            if remaining:
+                await asyncio.sleep(remaining)
 
             await event.reply(reply_text)
 
             logger.info(
-                f"✅ Reply sent for {telegram_id} after {delay:.2f}s delay"
+                f"✅ Reply sent for {telegram_id} "
+                f"(typing={typing_duration:.2f}s, total_delay={total_delay:.2f}s)"
             )
 
         # 🔥 🔥 🔥 MANA SIZ SO‘RAGAN KOD JOYI
