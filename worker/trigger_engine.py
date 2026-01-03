@@ -94,14 +94,19 @@ async def handle_incoming_message(
             except Exception:
                 pass
 
-            # Resolve entity explicitly (CRITICAL FIX)
+            # Resolve chat entity (IMPORTANT: reply must go to the chat, not sender_id)
+            # Using sender_id can fail (entity not cached) and can even point to the wrong peer.
             try:
-                entity = await client.get_input_entity(event.sender_id)
-            except Exception as e:
-                logger.error(
-                    f"❌ Failed to resolve entity for {telegram_id}: {repr(e)}"
-                )
-                return
+                chat_entity = await event.get_input_chat()
+            except Exception:
+                # Fallback: resolve by chat_id
+                try:
+                    chat_entity = await client.get_input_entity(event.chat_id)
+                except Exception as e:
+                    logger.error(
+                        f"❌ Failed to resolve chat entity for {telegram_id} chat_id={event.chat_id}: {repr(e)}"
+                    )
+                    return
 
             # ---- Show typing indicator ----
             try:
@@ -117,7 +122,14 @@ async def handle_incoming_message(
                 await asyncio.sleep(remaining)
 
             # ---- Send reply (STABLE METHOD) ----
-            await client.send_message(entity, reply_text)
+            try:
+                await client.send_message(chat_entity, reply_text)
+            except ValueError as e:
+                # Fallback: event.reply may work if Telethon can resolve internally
+                logger.warning(
+                    f"⚠️ send_message ValueError for {telegram_id} chat_id={event.chat_id}: {repr(e)}; falling back to event.reply"
+                )
+                await event.reply(reply_text)
 
             logger.info(
                 f"✅ Reply sent for {telegram_id} "
