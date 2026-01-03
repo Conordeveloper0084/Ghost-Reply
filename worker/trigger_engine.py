@@ -85,31 +85,39 @@ async def handle_incoming_message(
             logger.info(f"🎯 Trigger matched for {telegram_id}: {trigger_text}")
 
             # 🧠 Human-like behavior:
-            # - total reply delay: 5–10s (overall time before sending the reply)
-            # - typing indicator: 3–5s (shown BEFORE the reply)
+            # - total reply delay: 5–10s
+            # - typing indicator: 3–5s
             reply_delay = random.uniform(5.0, 10.0)
             typing_duration = random.uniform(3.0, 5.0)
 
-            # Mark as read quickly (optional, but feels human)
+            # 🔑 Resolve entity explicitly (CRITICAL to avoid entity errors)
             try:
-                await client.send_read_acknowledge(event.chat_id)
+                entity = await client.get_input_entity(event.sender_id)
+            except Exception as e:
+                logger.error(f"❌ Failed to resolve entity for {event.sender_id}: {e}")
+                return
+
+            # Mark as read (optional)
+            try:
+                await client.send_read_acknowledge(entity)
             except Exception:
                 pass
 
-            # Show "typing..." for a while
+            # Show typing indicator
             try:
-                async with client.action(event.chat_id, "typing"):
+                async with client.action(entity, "typing"):
                     await asyncio.sleep(typing_duration)
             except Exception:
-                # If typing action fails, still continue to reply
                 pass
 
-            # If total delay is longer than typing duration, wait the remaining time
+            # Remaining delay after typing
             remaining = max(0.0, reply_delay - typing_duration)
             if remaining:
                 await asyncio.sleep(remaining)
 
-            await event.reply(reply_text)
+            # Send reply safely
+            await client.send_message(entity, reply_text)
+
             logger.info(
                 f"✅ Reply sent for {telegram_id} after {reply_delay:.2f}s (typing {typing_duration:.2f}s)"
             )
