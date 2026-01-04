@@ -43,13 +43,21 @@ async def drop_client(telegram_id: int) -> None:
             pass
 
 
-async def get_or_create_client(telegram_id: int, session_string: str) -> TelegramClient:
+async def get_or_create_client(
+    telegram_id: int,
+    session_string: str,
+    worker_active: bool = True,
+) -> TelegramClient:
     """
     IMPORTANT RULE:
     - Session mismatch ≠ revocation
     - Session mismatch = user re-logged in → rotate client cleanly
     """
 
+    # ⏸ Worker paused → hard disconnect & do not connect
+    if not worker_active:
+        await drop_client(telegram_id)
+        return None
     # 1️⃣ Existing cached client
     if telegram_id in _clients:
         client = _clients[telegram_id]
